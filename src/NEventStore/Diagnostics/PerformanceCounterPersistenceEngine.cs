@@ -1,9 +1,10 @@
 namespace NEventStore.Diagnostics
 {
-    using System;
-    using System.Collections.Generic;
-    using System.Diagnostics;
-    using NEventStore.Persistence;
+	using System;
+	using System.Collections.Generic;
+	using System.Diagnostics;
+	using System.Threading.Tasks;
+	using NEventStore.Persistence;
 
     public class PerformanceCounterPersistenceEngine : IPersistStreams
     {
@@ -16,24 +17,18 @@ namespace NEventStore.Diagnostics
             _counters = new PerformanceCounters(instanceName);
         }
 
-        public void Initialize()
+        public Task Initialize()
         {
-            _persistence.Initialize();
+            return _persistence.Initialize();
         }
 
-        public ICommit Commit(CommitAttempt attempt)
+        public async Task<ICommit> Commit(CommitAttempt attempt)
         {
             Stopwatch clock = Stopwatch.StartNew();
-            ICommit commit = _persistence.Commit(attempt);
+            ICommit commit = await _persistence.Commit(attempt);
             clock.Stop();
             _counters.CountCommit(attempt.Events.Count, clock.ElapsedMilliseconds);
             return commit;
-        }
-
-        public void MarkCommitAsDispatched(ICommit commit)
-        {
-            _persistence.MarkCommitAsDispatched(commit);
-            _counters.CountCommitDispatched();
         }
 
         public ICheckpoint ParseCheckpoint(string checkpointValue)
@@ -41,39 +36,34 @@ namespace NEventStore.Diagnostics
             return LongCheckpoint.Parse(checkpointValue);
         }
 
-        public ICheckpoint GetCheckpoint(string checkpointToken = null)
+        public Task<ICheckpoint> GetCheckpoint(string checkpointToken = null)
         {
             return _persistence.GetCheckpoint(checkpointToken);
         }
 
-        public IEnumerable<ICommit> GetFromTo(string bucketId, DateTime start, DateTime end)
+        public Task<IEnumerable<ICommit>> GetFromTo(string bucketId, DateTime start, DateTime end)
         {
             return _persistence.GetFromTo(bucketId, start, end);
         }
 
-        public IEnumerable<ICommit> GetUndispatchedCommits()
-        {
-            return _persistence.GetUndispatchedCommits();
-        }
-
-        public IEnumerable<ICommit> GetFrom(string bucketId, string streamId, int minRevision, int maxRevision)
+		public Task<IEnumerable<ICommit>> GetFrom(string bucketId, string streamId, int minRevision, int maxRevision)
         {
             return _persistence.GetFrom(bucketId, streamId, minRevision, maxRevision);
         }
 
-        public IEnumerable<ICommit> GetFrom(string bucketId, DateTime start)
+		public Task<IEnumerable<ICommit>> GetFrom(string bucketId, DateTime start)
         {
             return _persistence.GetFrom(bucketId, start);
         }
 
-        public IEnumerable<ICommit> GetFrom(string checkpointToken)
+		public Task<IEnumerable<ICommit>> GetFrom(string checkpointToken)
         {
             return _persistence.GetFrom(checkpointToken);
         }
 
-        public bool AddSnapshot(ISnapshot snapshot)
+        public async Task<bool> AddSnapshot(ISnapshot snapshot)
         {
-            bool result = _persistence.AddSnapshot(snapshot);
+            bool result = await _persistence.AddSnapshot(snapshot);
             if (result)
             {
                 _counters.CountSnapshot();
@@ -82,34 +72,34 @@ namespace NEventStore.Diagnostics
             return result;
         }
 
-        public ISnapshot GetSnapshot(string bucketId, string streamId, int maxRevision)
+        public Task<ISnapshot> GetSnapshot(string bucketId, string streamId, int maxRevision)
         {
             return _persistence.GetSnapshot(bucketId, streamId, maxRevision);
         }
 
-        public virtual IEnumerable<IStreamHead> GetStreamsToSnapshot(string bucketId, int maxThreshold)
+        public virtual Task<IEnumerable<IStreamHead>> GetStreamsToSnapshot(string bucketId, int maxThreshold)
         {
             return _persistence.GetStreamsToSnapshot(bucketId, maxThreshold);
         }
 
-        public virtual void Purge()
+        public virtual Task Purge()
         {
-            _persistence.Purge();
+            return _persistence.Purge();
         }
 
-        public void Purge(string bucketId)
+        public Task Purge(string bucketId)
         {
-            _persistence.Purge(bucketId);
+            return _persistence.Purge(bucketId);
         }
 
-        public void Drop()
+        public Task Drop()
         {
-            _persistence.Drop();
+            return _persistence.Drop();
         }
 
-        public void DeleteStream(string bucketId, string streamId)
+        public Task DeleteStream(string bucketId, string streamId)
         {
-            _persistence.DeleteStream(bucketId, streamId);
+            return _persistence.DeleteStream(bucketId, streamId);
         }
 
         public bool IsDisposed

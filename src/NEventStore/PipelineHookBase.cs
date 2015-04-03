@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 namespace NEventStore
 {
     public abstract class PipelineHookBase : IPipelineHook
@@ -5,23 +6,29 @@ namespace NEventStore
         public virtual void Dispose()
         {}
 
-        public virtual ICommit Select(ICommit committed)
+        public virtual Task<ICommit> Select(ICommit committed)
         {
-            return committed;
+            return Task.FromResult(committed);
         }
 
-        public virtual bool PreCommit(CommitAttempt attempt)
+        public virtual Task<bool> PreCommit(CommitAttempt attempt)
         {
-            return true;
+            return Task.FromResult(true);
         }
 
-        public virtual void PostCommit(ICommit committed)
-        {}
+        public virtual Task PostCommit(ICommit committed)
+		{
+			return Task.FromResult(true);
+		}
 
-        public virtual void OnPurge(string bucketId)
-        {}
+        public virtual Task OnPurge(string bucketId)
+		{
+			return Task.FromResult(true);
+		}
 
-        public virtual void OnDeleteStream(string bucketId, string streamId)
-        {}
-    }
+        public virtual Task OnDeleteStream(string bucketId, string streamId)
+		{
+			return Task.FromResult(true);
+		}
+	}
 }

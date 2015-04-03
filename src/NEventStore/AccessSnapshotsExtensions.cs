@@ -1,8 +1,9 @@
 namespace NEventStore
 {
-    using System;
-    using System.Collections.Generic;
-    using NEventStore.Persistence;
+	using System;
+	using System.Collections.Generic;
+	using System.Threading.Tasks;
+	using NEventStore.Persistence;
 
     public static class AccessSnapshotsExtensions
     {
@@ -15,7 +16,7 @@ namespace NEventStore
         /// <returns>If found, it returns the snapshot; otherwise null is returned.</returns>
         /// <exception cref="StorageException" />
         /// <exception cref="StorageUnavailableException" />
-        public static ISnapshot GetSnapshot(this IAccessSnapshots accessSnapshots, Guid streamId, int maxRevision)
+        public static Task<ISnapshot> GetSnapshot(this IAccessSnapshots accessSnapshots, Guid streamId, int maxRevision)
         {
             return GetSnapshot(accessSnapshots, streamId.ToString(), maxRevision);
         }
@@ -29,7 +30,7 @@ namespace NEventStore
         /// <returns>If found, it returns the snapshot; otherwise null is returned.</returns>
         /// <exception cref="StorageException" />
         /// <exception cref="StorageUnavailableException" />
-        public static ISnapshot GetSnapshot(this IAccessSnapshots accessSnapshots, string streamId, int maxRevision)
+        public static Task<ISnapshot> GetSnapshot(this IAccessSnapshots accessSnapshots, string streamId, int maxRevision)
         {
             return accessSnapshots.GetSnapshot(Bucket.Default, streamId, maxRevision);
         }
@@ -44,7 +45,7 @@ namespace NEventStore
         /// <returns>If found, it returns the snapshot; otherwise null is returned.</returns>
         /// <exception cref="StorageException" />
         /// <exception cref="StorageUnavailableException" />
-        public static ISnapshot GetSnapshot(this IAccessSnapshots accessSnapshots, string bucketId, Guid streamId, int maxRevision)
+        public static Task<ISnapshot> GetSnapshot(this IAccessSnapshots accessSnapshots, string bucketId, Guid streamId, int maxRevision)
         {
             if (accessSnapshots == null)
             {
@@ -61,7 +62,7 @@ namespace NEventStore
         /// <returns>The streams for which the head and snapshot revisions differ by at least the threshold specified.</returns>
         /// <exception cref="StorageException" />
         /// <exception cref="StorageUnavailableException" />
-        public static IEnumerable<IStreamHead> GetStreamsToSnapshot(this IAccessSnapshots accessSnapshots, int maxThreshold)
+        public static Task<IEnumerable<IStreamHead>> GetStreamsToSnapshot(this IAccessSnapshots accessSnapshots, int maxThreshold)
         {
             if (accessSnapshots == null)
             {

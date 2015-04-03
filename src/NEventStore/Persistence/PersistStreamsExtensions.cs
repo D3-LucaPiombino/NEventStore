@@ -2,6 +2,7 @@ namespace NEventStore.Persistence
 {
     using System;
     using System.Collections.Generic;
+	using System.Threading.Tasks;
 
     public static class PersistStreamsExtensions
     {
@@ -13,7 +14,7 @@ namespace NEventStore.Persistence
         /// <returns>All commits that have occurred on or after the specified starting time.</returns>
         /// <exception cref="StorageException" />
         /// <exception cref="StorageUnavailableException" />
-        public static IEnumerable<ICommit> GetFrom(this IPersistStreams persistStreams, DateTime start)
+        public static Task<IEnumerable<ICommit>> GetFrom(this IPersistStreams persistStreams, DateTime start)
         {
             if (persistStreams == null)
             {
@@ -31,7 +32,7 @@ namespace NEventStore.Persistence
         /// <returns>All commits that have occurred on or after the specified starting time and before the end time.</returns>
         /// <exception cref="StorageException" />
         /// <exception cref="StorageUnavailableException" />
-        public static IEnumerable<ICommit> GetFromTo(this IPersistStreams persistStreams, DateTime start, DateTime end)
+        public static Task<IEnumerable<ICommit>> GetFromTo(this IPersistStreams persistStreams, DateTime start, DateTime end)
         {
             if (persistStreams == null)
             {
@@ -45,20 +46,20 @@ namespace NEventStore.Persistence
         /// </summary>
         /// <param name="persistStreams">The IPersistStreams instance.</param>
         /// <param name="streamId">The stream id to be deleted.</param>
-        public static void DeleteStream(this IPersistStreams persistStreams, string streamId)
+        public static Task DeleteStream(this IPersistStreams persistStreams, string streamId)
         {
             if (persistStreams == null)
             {
                 throw new ArgumentException("persistStreams is null");
             }
-            persistStreams.DeleteStream(Bucket.Default, streamId);
+            return persistStreams.DeleteStream(Bucket.Default, streamId);
         }
 
         /// <summary>
         ///     Gets all commits after from start checkpoint.
         /// </summary>
         /// <param name="persistStreams">The IPersistStreams instance.</param>
-        public static IEnumerable<ICommit> GetFromStart(this IPersistStreams persistStreams)
+        public static Task<IEnumerable<ICommit>> GetFromStart(this IPersistStreams persistStreams)
         {
             if (persistStreams == null)
             {

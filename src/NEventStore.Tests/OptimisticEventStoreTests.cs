@@ -4,67 +4,66 @@
 
 namespace NEventStore
 {
-    using System;
-    using System.Collections.Generic;
-    using System.Linq;
-
-    using FakeItEasy;
-
-    using NEventStore.Persistence;
-    using NEventStore.Persistence.AcceptanceTests;
-    using NEventStore.Persistence.AcceptanceTests.BDD;
-    using Xunit;
-    using Xunit.Should;
+	using System;
+	using System.Collections.Generic;
+	using System.Linq;
+	using System.Threading.Tasks;
+	using FakeItEasy;
+	using FluentAssertions;
+	using NEventStore.Persistence;
+	using NEventStore.Persistence.AcceptanceTests;
+	using NEventStore.Persistence.AcceptanceTests.BDD;
+	using Xunit;
 
     public class when_creating_a_new_stream : using_persistence
     {
         private IEventStream _stream;
 
-        protected override void Because()
+        protected override async Task Because()
         {
-            _stream = Store.CreateStream(streamId);
+            _stream = await Store.CreateStream(streamId);
         }
 
         [Fact]
         public void should_return_a_new_stream()
         {
-            _stream.ShouldNotBeNull();
+            _stream.Should().NotBeNull();
         }
 
         [Fact]
         public void should_return_a_stream_with_the_correct_stream_identifier()
         {
-            _stream.StreamId.ShouldBe(streamId);
+            _stream.StreamId.Should().Be(streamId);
         }
 
         [Fact]
         public void should_return_a_stream_with_a_zero_stream_revision()
         {
-            _stream.StreamRevision.ShouldBe(0);
+            _stream.StreamRevision.Should().Be(0);
         }
 
         [Fact]
         public void should_return_a_stream_with_a_zero_commit_sequence()
         {
-            _stream.CommitSequence.ShouldBe(0);
+            _stream.CommitSequence.Should().Be(0);
         }
 
         [Fact]
         public void should_return_a_stream_with_no_uncommitted_events()
         {
-            _stream.UncommittedEvents.ShouldBeEmpty();
+            _stream.UncommittedEvents.Should().BeEmpty();
         }
 
         [Fact]
         public void should_return_a_stream_with_no_committed_events()
         {
-            _stream.CommittedEvents.ShouldBeEmpty();
+            _stream.CommittedEvents.Should().BeEmpty();
         }
 
         [Fact]
         public void should_return_a_stream_with_empty_headers()
         {
-            _stream.UncommittedHeaders.ShouldBeEmpty();
+            _stream.UncommittedHeaders.Should().BeEmpty();
         }
     }
 
@@ -72,56 +71,57 @@ namespace NEventStore
     {
         private IEventStream _stream;
 
-        protected override void Context()
+        protected override Task Context()
         {
             A.CallTo(() => Persistence.GetFrom(Bucket.Default, streamId, 0, 0)).Returns(new ICommit[0]);
+			return Task.FromResult(true);
         }
 
-        protected override void Because()
+        protected override async Task Because()
         {
-            _stream = Store.OpenStream(streamId, 0, 0);
+            _stream = await Store.OpenStream(streamId, 0, 0);
         }
 
         [Fact]
         public void should_return_a_new_stream()
         {
-            _stream.ShouldNotBeNull();
+            _stream.Should().NotBeNull();
         }
 
         [Fact]
         public void should_return_a_stream_with_the_correct_stream_identifier()
         {
-            _stream.StreamId.ShouldBe(streamId);
+            _stream.StreamId.Should().Be(streamId);
         }
 
         [Fact]
         public void should_return_a_stream_with_a_zero_stream_revision()
         {
-            _stream.StreamRevision.ShouldBe(0);
+            _stream.StreamRevision.Should().Be(0);
         }
 
         [Fact]
         public void should_return_a_stream_with_a_zero_commit_sequence()
         {
-            _stream.CommitSequence.ShouldBe(0);
+            _stream.CommitSequence.Should().Be(0);
         }
 
         [Fact]
         public void should_return_a_stream_with_no_uncommitted_events()
         {
-            _stream.UncommittedEvents.ShouldBeEmpty();
+            _stream.UncommittedEvents.Should().BeEmpty();
         }
 
         [Fact]
         public void should_return_a_stream_with_no_committed_events()
         {
-            _stream.CommittedEvents.ShouldBeEmpty();
+            _stream.CommittedEvents.Should().BeEmpty();
         }
 
         [Fact]
         public void should_return_a_stream_with_empty_headers()
         {
-            _stream.UncommittedHeaders.ShouldBeEmpty();
+            _stream.UncommittedHeaders.Should().BeEmpty();
         }
     }
 
@@ -130,21 +130,22 @@ namespace NEventStore
         private const int MinRevision = 1;
         private Exception _thrown;
 
-        protected override void Context()
+        protected override Task Context()
         {
             A.CallTo(() => Persistence.GetFrom(Bucket.Default, streamId, MinRevision, int.MaxValue))
                 .Returns(Enumerable.Empty<ICommit>());
+			return Task.FromResult(true);
         }
 
-        protected override void Because()
+        protected override async Task Because()
         {
-            _thrown = Catch.Exception(() => Store.OpenStream(streamId, MinRevision));
+            _thrown = await Catch.Exception(() => Store.OpenStream(streamId, MinRevision));
         }
 
         [Fact]
         public void should_throw_a_StreamNotFoundException()
         {
-            _thrown.ShouldBeInstanceOf<StreamNotFoundException>();
+            _thrown.Should().BeOfType<StreamNotFoundException>();
         }
     }
 
@@ -155,7 +156,7 @@ namespace NEventStore
         private ICommit _committed;
         private IEventStream _stream;
 
-        protected override void Context()
+        protected override Task Context()
         {
             _committed = BuildCommitStub(MinRevision, 1);
 
@@ -165,11 +166,12 @@ namespace NEventStore
             var hook = A.Fake<IPipelineHook>();
             A.CallTo(() => hook.Select(_committed)).Returns(_committed);
             PipelineHooks.Add(hook);
+			return Task.FromResult(true);
         }
 
-        protected override void Because()
+        protected override async Task Because()
         {
-            _stream = Store.OpenStream(streamId, MinRevision, MaxRevision);
+            _stream = await Store.OpenStream(streamId, MinRevision, MaxRevision);
         }
 
         [Fact]
@@ -187,7 +189,7 @@ namespace NEventStore
         [Fact]
         public void should_return_an_event_stream_containing_the_correct_stream_identifer()
         {
-            _stream.StreamId.ShouldBe(streamId);
+            _stream.StreamId.Should().Be(streamId);
         }
     }
 
@@ -197,17 +199,18 @@ namespace NEventStore
         private ICommit[] _committed;
         private Snapshot _snapshot;
 
-        protected override void Context()
+        protected override Task Context()
         {
             _snapshot = new Snapshot(streamId, 42, "snapshot");
             _committed = new[] { BuildCommitStub(42, 0)};
 
             A.CallTo(() => Persistence.GetFrom(Bucket.Default, streamId, 42, MaxRevision)).Returns(_committed);
+			return Task.FromResult(true);
         }
 
-        protected override void Because()
+        protected override Task Because()
         {
-            Store.OpenStream(_snapshot, MaxRevision);
+            return Store.OpenStream(_snapshot, MaxRevision);
         }
 
         [Fact]
@@ -225,71 +228,72 @@ namespace NEventStore
         private Snapshot _snapshot;
         private IEventStream _stream;
 
-        protected override void Context()
+        protected override async Task Context()
         {
             _snapshot = new Snapshot(streamId, HeadStreamRevision, "snapshot");
             _committed = new EnumerableCounter<ICommit>(
                 new[] { BuildCommitStub(HeadStreamRevision, HeadCommitSequence)});
 
-            A.CallTo(() => Persistence.GetFrom(Bucket.Default, streamId, HeadStreamRevision, int.MaxValue))
+            A.CallTo(() =>  Persistence.GetFrom(Bucket.Default, streamId, HeadStreamRevision, int.MaxValue))
                 .Returns(_committed);
         }
 
-        protected override void Because()
+        protected override async Task Because()
         {
-            _stream = Store.OpenStream(_snapshot, int.MaxValue);
+            _stream = await Store.OpenStream(_snapshot, int.MaxValue);
         }
 
         [Fact]
         public void should_return_a_stream_with_the_correct_stream_identifier()
         {
-            _stream.StreamId.ShouldBe(streamId);
+            _stream.StreamId.Should().Be(streamId);
         }
 
         [Fact]
         public void should_return_a_stream_with_revision_of_the_stream_head()
         {
-            _stream.StreamRevision.ShouldBe(HeadStreamRevision);
+            _stream.StreamRevision.Should().Be(HeadStreamRevision);
         }
 
         [Fact]
         public void should_return_a_stream_with_a_commit_sequence_of_the_stream_head()
         {
-            _stream.CommitSequence.ShouldBe(HeadCommitSequence);
+            _stream.CommitSequence.Should().Be(HeadCommitSequence);
         }
 
         [Fact]
         public void should_return_a_stream_with_no_committed_events()
         {
-            _stream.CommittedEvents.Count.ShouldBe(0);
+            _stream.CommittedEvents.Count.Should().Be(0);
         }
 
         [Fact]
         public void should_return_a_stream_with_no_uncommitted_events()
         {
-            _stream.UncommittedEvents.Count.ShouldBe(0);
+            _stream.UncommittedEvents.Count.Should().Be(0);
         }
 
         [Fact]
         public void should_only_enumerate_the_set_of_commits_once()
         {
-            _committed.GetEnumeratorCallCount.ShouldBe(1);
+            _committed.GetEnumeratorCallCount.Should().Be(1);
         }
     }
 
     public class when_reading_from_revision_zero : using_persistence
     {
-        protected override void Context()
+        protected override Task Context()
         {
             A.CallTo(() => Persistence.GetFrom(Bucket.Default, streamId, 0, int.MaxValue))
                 .Returns(Enumerable.Empty<ICommit>());
+			return Task.FromResult(true);
         }
 
-        protected override void Because()
+        protected override async Task Because()
         {
             // ReSharper disable once ReturnValueOfPureMethodIsNotUsed
             // This forces the enumeration of the commits.
-            Store.GetFrom(streamId, 0, int.MaxValue).ToList();
+            (await Store.GetFrom(streamId, 0, int.MaxValue)).ToList();
         }
 
         [Fact]
@@ -303,16 +307,17 @@ namespace NEventStore
     {
         private ICommit _committed;
 
-        protected override void Context()
+        protected override Task Context()
         {
             _committed = BuildCommitStub(1, 1);
 
             A.CallTo(() => Persistence.GetFrom(Bucket.Default, streamId, 0, int.MaxValue)).Returns(new[] { _committed });
+			return Task.FromResult(true);
         }
 
-        protected override void Because()
+        protected override Task Because()
         {
-            Store.OpenStream(streamId, 0, 0);
+            return Store.OpenStream(streamId, 0, 0);
         }
 
         [Fact]
@@ -326,15 +331,15 @@ namespace NEventStore
     {
         private Exception thrown;
 
-        protected override void Because()
+        protected override async Task Because()
         {
-            thrown = Catch.Exception(() => Store.OpenStream(null, int.MaxValue));
+            thrown = await Catch.Exception(() => Store.OpenStream(null, int.MaxValue));
         }
 
         [Fact]
         public void should_throw_an_ArgumentNullException()
         {
-            thrown.ShouldBeInstanceOf<ArgumentNullException>();
+            thrown.Should().BeOfType<ArgumentNullException>();
         }
     }
 
@@ -343,18 +348,19 @@ namespace NEventStore
         private ICommit _committed;
         private Snapshot snapshot;
 
-        protected override void Context()
+        protected override Task Context()
         {
             snapshot = new Snapshot(streamId, 1, "snapshot");
             _committed = BuildCommitStub(1, 1);
 
             A.CallTo(() => Persistence.GetFrom(Bucket.Default, streamId, snapshot.StreamRevision, int.MaxValue))
                 .Returns(new[] { _committed });
+			return Task.FromResult(true);
         }
 
-        protected override void Because()
+        protected override Task Because()
         {
-            Store.OpenStream(snapshot, 0);
+            return Store.OpenStream(snapshot, 0);
         }
 
         [Fact]
@@ -368,15 +374,15 @@ namespace NEventStore
     {
         private Exception thrown;
 
-        protected override void Because()
+        protected override async Task Because()
         {
-            thrown = Catch.Exception(() => ((ICommitEvents) Store).Commit(null));
+            thrown = await Catch.Exception(() => ((ICommitEvents) Store).Commit(null));
         }
 
         [Fact]
         public void should_throw_an_ArgumentNullException()
         {
-            thrown.ShouldBeInstanceOf<ArgumentNullException>();
+            thrown.Should().BeOfType<ArgumentNullException>();
         }
     }
 
@@ -385,7 +391,7 @@ namespace NEventStore
         private CommitAttempt _populatedAttempt;
         private ICommit _populatedCommit;
 
-        protected override void Context()
+        protected override Task Context()
         {
             _populatedAttempt = BuildCommitAttemptStub(1, 1);
 
@@ -408,11 +414,12 @@ namespace NEventStore
             A.CallTo(() => hook.PreCommit(_populatedAttempt)).Returns(true);
 
             PipelineHooks.Add(hook);
+			return Task.FromResult(true);
         }
 
-        protected override void Because()
+        protected override Task Because()
         {
-            ((ICommitEvents) Store).Commit(_populatedAttempt);
+            return ((ICommitEvents) Store).Commit(_populatedAttempt);
         }
 
         [Fact]
@@ -439,7 +446,7 @@ namespace NEventStore
         private CommitAttempt _attempt;
         private ICommit _commit;
 
-        protected override void Context()
+        protected override Task Context()
         {
             _attempt = BuildCommitAttemptStub(1, 1);
             _commit = BuildCommitStub(1, 1);
@@ -448,11 +455,12 @@ namespace NEventStore
             A.CallTo(() => hook.PreCommit(_attempt)).Returns(false);
 
             PipelineHooks.Add(hook);
+			return Task.FromResult(true);
         }
 
-        protected override void Because()
+        protected override Task Because()
         {
-            ((ICommitEvents) Store).Commit(_attempt);
+            return ((ICommitEvents) Store).Commit(_attempt);
         }
 
         [Fact]
@@ -472,15 +480,16 @@ namespace NEventStore
     {
         public void should_return_a_reference_to_the_underlying_persistence_infrastructure_decorator()
         {
-            Store.Advanced.ShouldBeInstanceOf<PipelineHooksAwarePersistanceDecorator>();
+            Store.Advanced.Should().BeOfType<PipelineHooksAwarePersistanceDecorator>();
         }
     }
 
     public class when_disposing_the_event_store : using_persistence
     {
-        protected override void Because()
+        protected override Task Because()
         {
             Store.Dispose();
+			return Task.FromResult(true);
         }
 
         [Fact]

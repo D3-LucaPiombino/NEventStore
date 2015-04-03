@@ -1,9 +1,10 @@
 namespace CommonDomain.Persistence.EventStore
 {
 	using System;
+	using System.Collections.Concurrent;
 	using System.Collections.Generic;
 	using System.Linq;
-
+	using System.Threading.Tasks;
 	using NEventStore;
 	using NEventStore.Persistence;
 
@@ -17,9 +18,9 @@ namespace CommonDomain.Persistence.EventStore
 
 		private readonly IConstructAggregates _factory;
 
-		private readonly IDictionary<string, ISnapshot> _snapshots = new Dictionary<string, ISnapshot>();
+		private readonly ConcurrentDictionary<string, Task<ISnapshot>> _snapshots = new ConcurrentDictionary<string, Task<ISnapshot>>();
 
-		private readonly IDictionary<string, IEventStream> _streams = new Dictionary<string, IEventStream>();
+		private readonly ConcurrentDictionary<string, Task<IEventStream>> _streams = new ConcurrentDictionary<string, Task<IEventStream>>();
 
 		public EventStoreRepository(IStoreEvents eventStore, IConstructAggregates factory, IDetectConflicts conflictDetector)
 		{
@@ -34,25 +35,25 @@ namespace CommonDomain.Persistence.EventStore
 			GC.SuppressFinalize(this);
 		}
 
-		public virtual TAggregate GetById<TAggregate>(Guid id) where TAggregate : class, IAggregate
+		public virtual Task<TAggregate> GetById<TAggregate>(Guid id) where TAggregate : class, IAggregate
 		{
 			return GetById<TAggregate>(Bucket.Default, id);
 		}
 
-		public virtual TAggregate GetById<TAggregate>(Guid id, int versionToLoad) where TAggregate : class, IAggregate
+		public virtual Task<TAggregate> GetById<TAggregate>(Guid id, int versionToLoad) where TAggregate : class, IAggregate
 		{
 			return GetById<TAggregate>(Bucket.Default, id, versionToLoad);
 		}
 
-		public TAggregate GetById<TAggregate>(string bucketId, Guid id) where TAggregate : class, IAggregate
+		public Task<TAggregate> GetById<TAggregate>(string bucketId, Guid id) where TAggregate : class, IAggregate
 		{
 			return GetById<TAggregate>(bucketId, id, int.MaxValue);
 		}
 
-		public TAggregate GetById<TAggregate>(string bucketId, Guid id, int versionToLoad) where TAggregate : class, IAggregate
+		public async Task<TAggregate> GetById<TAggregate>(string bucketId, Guid id, int versionToLoad) where TAggregate : class, IAggregate
 		{
-			ISnapshot snapshot = GetSnapshot(bucketId, id, versionToLoad);
-			IEventStream stream = OpenStream(bucketId, id, versionToLoad, snapshot);
+			ISnapshot snapshot = await GetSnapshot(bucketId, id, versionToLoad);
+			IEventStream stream = await OpenStream(bucketId, id, versionToLoad, snapshot);
 			IAggregate aggregate = GetAggregate<TAggregate>(snapshot, stream);
 
 			ApplyEventsToAggregate(versionToLoad, stream, aggregate);
@@ -60,23 +61,22 @@ namespace CommonDomain.Persistence.EventStore
 			return aggregate as TAggregate;
 		}
 
-		public virtual void Save(IAggregate aggregate, Guid commitId, Action<IDictionary<string, object>> updateHeaders)
+		public virtual Task Save(IAggregate aggregate, Guid commitId, Action<IDictionary<string, object>> updateHeaders)
 		{
-			Save(Bucket.Default, aggregate, commitId, updateHeaders);
-
+			return Save(Bucket.Default, aggregate, commitId, updateHeaders);
 		}
 
-		public void Save(string bucketId, IAggregate aggregate, Guid commitId, Action<IDictionary<string, object>> updateHeaders)
+		public async Task Save(string bucketId, IAggregate aggregate, Guid commitId, Action<IDictionary<string, object>> updateHeaders)
 		{
 			Dictionary<string, object> headers = PrepareHeaders(aggregate, updateHeaders);
 			while (true)
 			{
-				IEventStream stream = PrepareStream(bucketId, aggregate, headers);
+				IEventStream stream = await PrepareStream(bucketId, aggregate, headers);
 				int commitEventCount = stream.CommittedEvents.Count;
 
 				try
 				{
-					stream.CommitChanges(commitId);
+					await stream.CommitChanges(commitId);
 					aggregate.ClearUncommittedEvents();
 					return;
 				}
@@ -138,42 +138,31 @@ namespace CommonDomain.Persistence.EventStore
 			return _factory.Build(typeof(TAggregate), stream.StreamId.ToGuid(), memento);
 		}
 
-		private ISnapshot GetSnapshot(string bucketId, Guid id, int version)
+		private async Task<ISnapshot> GetSnapshot(string bucketId, Guid id, int version)
 		{
-			ISnapshot snapshot;
 			var snapshotId = bucketId + id;
-			if (!_snapshots.TryGetValue(snapshotId, out snapshot))
-			{
-				_snapshots[snapshotId] = snapshot = _eventStore.Advanced.GetSnapshot(bucketId, id, version);
-			}
 
-			return snapshot;
+			return await _snapshots.GetOrAdd(
+				snapshotId,
+				(sid) => _eventStore.Advanced.GetSnapshot(bucketId, id, version));
 		}
 
-		private IEventStream OpenStream(string bucketId, Guid id, int version, ISnapshot snapshot)
+		private Task<IEventStream> OpenStream(string bucketId, Guid id, int version, ISnapshot snapshot)
 		{
-			IEventStream stream;
 			var streamId = bucketId + "+" + id;
-			if (_streams.TryGetValue(streamId, out stream))
-			{
-				return stream;
-			}
-
-			stream = snapshot == null 
-                ? _eventStore.OpenStream(bucketId, id, 0, version)
-				: _eventStore.OpenStream(snapshot, version);
-
-			return _streams[streamId] = stream;
+			return _streams.GetOrAdd(
+				streamId,
+				(sid) => snapshot == null
+					? _eventStore.OpenStream(bucketId, id, 0, version)
+					: _eventStore.OpenStream(snapshot, version));
 		}
 
-		private IEventStream PrepareStream(string bucketId, IAggregate aggregate, Dictionary<string, object> headers)
+		private async Task<IEventStream> PrepareStream(string bucketId, IAggregate aggregate, Dictionary<string, object> headers)
 		{
-			IEventStream stream;
 			var streamId = bucketId + "+" + aggregate.Id;
-			if (!_streams.TryGetValue(streamId, out stream))
-			{
-				_streams[streamId] = stream = _eventStore.CreateStream(bucketId, aggregate.Id);
-			}
+			var stream = await _streams.GetOrAdd(
+				streamId,
+				(sid) => _eventStore.CreateStream(bucketId, aggregate.Id));
 
 			foreach (var item in headers)
 			{

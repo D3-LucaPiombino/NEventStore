@@ -1,8 +1,9 @@
 namespace NEventStore
 {
-    using System;
-    using System.Collections.Generic;
-    using NEventStore.Persistence;
+	using System;
+	using System.Collections.Generic;
+	using System.Threading.Tasks;
+	using NEventStore.Persistence;
 
     /// <summary>
     ///     Indicates the ability to track a series of events and commit them to durable storage.
@@ -65,7 +66,7 @@ namespace NEventStore
         /// <exception cref="ConcurrencyException" />
         /// <exception cref="StorageException" />
         /// <exception cref="StorageUnavailableException" />
-        void CommitChanges(Guid commitId);
+        Task CommitChanges(Guid commitId);
 
         /// <summary>
         ///     Clears the uncommitted changes.

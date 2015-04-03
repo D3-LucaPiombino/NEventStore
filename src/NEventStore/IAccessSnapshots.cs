@@ -1,7 +1,8 @@
 namespace NEventStore
 {
-    using System.Collections.Generic;
-    using NEventStore.Persistence;
+	using System.Collections.Generic;
+	using System.Threading.Tasks;
+	using NEventStore.Persistence;
 
     /// <summary>
     ///     Indicates the ability to get or retrieve a snapshot for a given stream.
@@ -20,7 +21,7 @@ namespace NEventStore
         /// <returns>If found, it returns the snapshot; otherwise null is returned.</returns>
         /// <exception cref="StorageException" />
         /// <exception cref="StorageUnavailableException" />
-        ISnapshot GetSnapshot(string bucketId, string streamId, int maxRevision);
+        Task<ISnapshot> GetSnapshot(string bucketId, string streamId, int maxRevision);
 
         /// <summary>
         ///     Adds the snapshot provided to the stream indicated.
@@ -29,7 +30,7 @@ namespace NEventStore
         /// <returns>If the snapshot was added, returns true; otherwise false.</returns>
         /// <exception cref="StorageException" />
         /// <exception cref="StorageUnavailableException" />
-        bool AddSnapshot(ISnapshot snapshot);
+        Task<bool> AddSnapshot(ISnapshot snapshot);
 
         /// <summary>
         ///     Gets identifiers for all streams whose head and last snapshot revisions differ by at least the threshold specified.
@@ -39,6 +40,6 @@ namespace NEventStore
         /// <returns>The streams for which the head and snapshot revisions differ by at least the threshold specified.</returns>
         /// <exception cref="StorageException" />
         /// <exception cref="StorageUnavailableException" />
-        IEnumerable<IStreamHead> GetStreamsToSnapshot(string bucketId, int maxThreshold);
+        Task<IEnumerable<IStreamHead>> GetStreamsToSnapshot(string bucketId, int maxThreshold);
     }
 }

@@ -1,152 +1,152 @@
 namespace NEventStore.Persistence
 {
-    using System;
-    using System.Collections.Generic;
-    using System.Linq;
-    using NEventStore.Logging;
+	using System;
+	using System.Collections.Generic;
+	using System.Linq;
+	using System.Threading.Tasks;
+	using NEventStore.Logging;
 
-    public class PipelineHooksAwarePersistanceDecorator : IPersistStreams
-    {
-        private static readonly ILog Logger = LogFactory.BuildLogger(typeof (PipelineHooksAwarePersistanceDecorator));
-        private readonly IPersistStreams _original;
-        private readonly IEnumerable<IPipelineHook> _pipelineHooks;
+	public class PipelineHooksAwarePersistanceDecorator : IPersistStreams
+	{
+		private static readonly ILog Logger = LogFactory.BuildLogger(typeof(PipelineHooksAwarePersistanceDecorator));
+		private readonly IPersistStreams _original;
+		private readonly IEnumerable<IPipelineHook> _pipelineHooks;
 
-        public PipelineHooksAwarePersistanceDecorator(IPersistStreams original, IEnumerable<IPipelineHook> pipelineHooks)
-        {
-            if (original == null)
-            {
-                throw new ArgumentNullException("original");
-            }
-            if (pipelineHooks == null)
-            {
-                throw new ArgumentNullException("pipelineHooks");
-            }
-            _original = original;
-            _pipelineHooks = pipelineHooks;
-        }
+		public PipelineHooksAwarePersistanceDecorator(IPersistStreams original, IEnumerable<IPipelineHook> pipelineHooks)
+		{
+			if (original == null)
+			{
+				throw new ArgumentNullException("original");
+			}
+			if (pipelineHooks == null)
+			{
+				throw new ArgumentNullException("pipelineHooks");
+			}
+			_original = original;
+			_pipelineHooks = pipelineHooks;
+		}
 
-        public void Dispose()
-        {
-            _original.Dispose();
-        }
+		public void Dispose()
+		{
+			_original.Dispose();
+		}
 
-        public IEnumerable<ICommit> GetFrom(string bucketId, string streamId, int minRevision, int maxRevision)
-        {
-            return ExecuteHooks(_original.GetFrom(bucketId, streamId, minRevision, maxRevision));
-        }
+		public async Task<IEnumerable<ICommit>> GetFrom(string bucketId, string streamId, int minRevision, int maxRevision)
+		{
+			return await ExecuteHooks(await _original.GetFrom(bucketId, streamId, minRevision, maxRevision));
+		}
 
-        public ICommit Commit(CommitAttempt attempt)
-        {
-            return _original.Commit(attempt);
-        }
+		public Task<ICommit> Commit(CommitAttempt attempt)
+		{
+			return _original.Commit(attempt);
+		}
 
-        public ISnapshot GetSnapshot(string bucketId, string streamId, int maxRevision)
-        {
-            return _original.GetSnapshot(bucketId, streamId, maxRevision);
-        }
+		public Task<ISnapshot> GetSnapshot(string bucketId, string streamId, int maxRevision)
+		{
+			return _original.GetSnapshot(bucketId, streamId, maxRevision);
+		}
 
-        public bool AddSnapshot(ISnapshot snapshot)
-        {
-            return _original.AddSnapshot(snapshot);
-        }
+		public Task<bool> AddSnapshot(ISnapshot snapshot)
+		{
+			return _original.AddSnapshot(snapshot);
+		}
 
-        public IEnumerable<IStreamHead> GetStreamsToSnapshot(string bucketId, int maxThreshold)
-        {
-            return _original.GetStreamsToSnapshot(bucketId, maxThreshold);
-        }
+		public Task<IEnumerable<IStreamHead>> GetStreamsToSnapshot(string bucketId, int maxThreshold)
+		{
+			return _original.GetStreamsToSnapshot(bucketId, maxThreshold);
+		}
 
-        public void Initialize()
-        {
-            _original.Initialize();
-        }
+		public Task Initialize()
+		{
+			return _original.Initialize();
+		}
 
-        public IEnumerable<ICommit> GetFrom(string bucketId, DateTime start)
-        {
-            return ExecuteHooks(_original.GetFrom(bucketId, start));
-        }
+		public async Task<IEnumerable<ICommit>> GetFrom(string bucketId, DateTime start)
+		{
+			return await ExecuteHooks(await _original.GetFrom(bucketId, start));
+		}
 
-        public IEnumerable<ICommit> GetFrom(string checkpointToken)
-        {
-            return ExecuteHooks(_original.GetFrom(checkpointToken));
-        }
+		public async Task<IEnumerable<ICommit>> GetFrom(string checkpointToken)
+		{
+			return await ExecuteHooks(await _original.GetFrom(checkpointToken));
+		}
 
-        public ICheckpoint GetCheckpoint(string checkpointToken)
-        {
-            return _original.GetCheckpoint(checkpointToken);
-        }
+		public Task<ICheckpoint> GetCheckpoint(string checkpointToken)
+		{
+			return _original.GetCheckpoint(checkpointToken);
+		}
 
-        public IEnumerable<ICommit> GetFromTo(string bucketId, DateTime start, DateTime end)
-        {
-            return ExecuteHooks(_original.GetFromTo(bucketId, start, end));
-        }
+		public async Task<IEnumerable<ICommit>> GetFromTo(string bucketId, DateTime start, DateTime end)
+		{
+			return await ExecuteHooks(await _original.GetFromTo(bucketId, start, end));
+		}
 
-        public IEnumerable<ICommit> GetUndispatchedCommits()
-        {
-            return ExecuteHooks(_original.GetUndispatchedCommits());
-        }
+		public async Task Purge()
+		{
+			await _original.Purge();
+			foreach (var pipelineHook in _pipelineHooks)
+			{
+				pipelineHook.OnPurge();
+			}
+		}
 
-        public void MarkCommitAsDispatched(ICommit commit)
-        {
-            _original.MarkCommitAsDispatched(commit);
-        }
+		public async Task Purge(string bucketId)
+		{
+			await _original.Purge(bucketId);
+			foreach (var pipelineHook in _pipelineHooks)
+			{
+				await pipelineHook.OnPurge(bucketId);
+			}
+		}
 
-        public void Purge()
-        {
-            _original.Purge();
-            foreach (var pipelineHook in _pipelineHooks)
-            {
-                pipelineHook.OnPurge();
-            }
-        }
+		public Task Drop()
+		{
+			return _original.Drop();
+		}
 
-        public void Purge(string bucketId)
-        {
-            _original.Purge(bucketId);
-            foreach (var pipelineHook in _pipelineHooks)
-            {
-                pipelineHook.OnPurge(bucketId);
-            }
-        }
+		public async Task DeleteStream(string bucketId, string streamId)
+		{
+			await _original.DeleteStream(bucketId, streamId);
+			foreach (var pipelineHook in _pipelineHooks)
+			{
+				await pipelineHook.OnDeleteStream(bucketId, streamId);
+			}
+		}
 
-        public void Drop()
-        {
-            _original.Drop();
-        }
+		public bool IsDisposed
+		{
+			get
+			{
+				return _original.IsDisposed;
+			}
+		}
 
-        public void DeleteStream(string bucketId, string streamId)
-        {
-            _original.DeleteStream(bucketId, streamId);
-            foreach (var pipelineHook in _pipelineHooks)
-            {
-                pipelineHook.OnDeleteStream(bucketId, streamId);
-            }
-        }
+		private async Task<IEnumerable<ICommit>> ExecuteHooks(IEnumerable<ICommit> commits)
+		{
+			List<ICommit> results = new List<ICommit>();
+			foreach (var commit in commits)
+			{
+				ICommit filtered = commit;
+				foreach (var hook in _pipelineHooks)
+				{
+					filtered = await hook.Select(filtered);
+					if (filtered == null)
+					{
+						Logger.Info(Resources.PipelineHookSkippedCommit, hook.GetType(), commit.CommitId);
+						break;
+					}
+				}
 
-        public bool IsDisposed
-        {
-            get { return _original.IsDisposed; }
-        }
-
-        private IEnumerable<ICommit> ExecuteHooks(IEnumerable<ICommit> commits)
-        {
-            foreach (var commit in commits)
-            {
-                ICommit filtered = commit;
-                foreach (var hook in _pipelineHooks.Where(x => (filtered = x.Select(filtered)) == null))
-                {
-                    Logger.Info(Resources.PipelineHookSkippedCommit, hook.GetType(), commit.CommitId);
-                    break;
-                }
-
-                if (filtered == null)
-                {
-                    Logger.Info(Resources.PipelineHookFilteredCommit);
-                }
-                else
-                {
-                    yield return filtered;
-                }
-            }
-        }
-    }
+				if (filtered == null)
+				{
+					Logger.Info(Resources.PipelineHookFilteredCommit);
+				}
+				else
+				{
+					results.Add(filtered);
+				}
+			}
+			return results;
+		}
+	}
 }

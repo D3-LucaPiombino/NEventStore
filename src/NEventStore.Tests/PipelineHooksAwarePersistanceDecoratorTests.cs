@@ -4,21 +4,23 @@
 
 namespace NEventStore
 {
-    using System;
-    using System.Collections.Generic;
-    using System.Linq;
-    using FakeItEasy;
-    using NEventStore.Persistence;
-    using NEventStore.Persistence.AcceptanceTests.BDD;
-    using Xunit;
+	using System;
+	using System.Collections.Generic;
+	using System.Linq;
+	using System.Threading.Tasks;
+	using FakeItEasy;
+	using NEventStore.Persistence;
+	using NEventStore.Persistence.AcceptanceTests.BDD;
+	using Xunit;
 
     public class PipelineHooksAwarePersistenceDecoratorTests
     {
         public class when_disposing_the_decorator : using_underlying_persistence
         {
-            protected override void Because()
+            protected override Task Because()
             {
                 Decorator.Dispose();
+				return Task.FromResult(true);
             }
 
             [Fact]
@@ -35,7 +37,7 @@ namespace NEventStore
             private IPipelineHook _hook1;
             private IPipelineHook _hook2;
 
-            protected override void Context()
+            protected override Task Context()
             {
                 _date = DateTime.Now;
                 _commit = new Commit(Bucket.Default, streamId, 1, Guid.NewGuid(), 1, DateTime.Now, new LongCheckpoint(0).Value, null, null);
@@ -49,13 +51,15 @@ namespace NEventStore
                 pipelineHooks.Add(_hook2);
 
                 A.CallTo(() => persistence.GetFrom(Bucket.Default, _date)).Returns(new List<ICommit> {_commit});
+				return Task.FromResult(true);
             }
 
-            protected override void Because()
+            protected override async Task Because()
             {
                 // ReSharper disable once ReturnValueOfPureMethodIsNotUsed
                 // Forces enumeration of commits.
-                Decorator.GetFrom(_date).ToList();
+                var commits = await Decorator.GetFrom(_date);
+				var items = commits.ToList();
             }
 
             [Fact]
@@ -79,7 +83,7 @@ namespace NEventStore
             private IPipelineHook _hook1;
             private IPipelineHook _hook2;
 
-            protected override void Context()
+            protected override Task Context()
             {
                 _date = DateTime.Now;
                 _commit = new Commit(Bucket.Default, streamId, 1, Guid.NewGuid(), 1, DateTime.Now, new LongCheckpoint(0).Value, null, null);
@@ -94,13 +98,15 @@ namespace NEventStore
 
                 A.CallTo(() => persistence.GetFrom(Bucket.Default, _commit.StreamId, 0, int.MaxValue))
                     .Returns(new List<ICommit> { _commit });
+				return Task.FromResult(true);
             }
 
-            protected override void Because()
+            protected override async Task Because()
             {
                 // ReSharper disable once ReturnValueOfPureMethodIsNotUsed
                 // Forces enumeration of commits.
-                Decorator.GetFrom(Bucket.Default, _commit.StreamId, 0, int.MaxValue).ToList();
+                var commit = await Decorator.GetFrom(Bucket.Default, _commit.StreamId, 0, int.MaxValue);
+				var commits = commit.ToList();
             }
 
             [Fact]
@@ -125,7 +131,7 @@ namespace NEventStore
             private IPipelineHook _hook2;
             private DateTime _start;
 
-            protected override void Context()
+            protected override Task Context()
             {
                 _start = DateTime.Now;
                 _end = DateTime.Now;
@@ -142,11 +148,11 @@ namespace NEventStore
                 A.CallTo(() => persistence.GetFromTo(Bucket.Default, _start, _end)).Returns(new List<ICommit> {_commit});
             }
 
-            protected override void Because()
+            protected override async Task Because()
             {
                 // ReSharper disable once ReturnValueOfPureMethodIsNotUsed
                 // Forces enumeration of commits
-                Decorator.GetFromTo(_start, _end).ToList();
+                (await Decorator.GetFromTo(_start, _end)).ToList();
             }
 
             [Fact]
@@ -167,12 +173,12 @@ namespace NEventStore
         {
             private CommitAttempt _attempt;
 
-            protected override void Context()
+            protected override Task Context()
             {
                 _attempt = new CommitAttempt(streamId, 1, Guid.NewGuid(), 1, DateTime.Now, null, new List<EventMessage> {new EventMessage()});
             }
 
-            protected override void Because()
+            protected override Task Because()
             {
                 Decorator.Commit(_attempt);
             }
@@ -190,7 +196,7 @@ namespace NEventStore
             private IPipelineHook _hook1;
             private IPipelineHook _hook2;
 
-            protected override void Context()
+            protected override Task Context()
             {
                 _commit = new Commit(Bucket.Default, streamId, 1, Guid.NewGuid(), 1, DateTime.Now, new LongCheckpoint(0).Value, null, null);
 
@@ -205,7 +211,7 @@ namespace NEventStore
                 A.CallTo(() => persistence.GetFrom(null)).Returns(new List<ICommit> {_commit});
             }
 
-            protected override void Because()
+            protected override Task Because()
             {
                 Decorator.GetFrom(null).ToList();
             }
@@ -224,57 +230,17 @@ namespace NEventStore
             }
         }
 
-        public class when_reading_the_all_events_get_undispatched : using_underlying_persistence
-        {
-            private ICommit _commit;
-            private IPipelineHook _hook1;
-            private IPipelineHook _hook2;
-
-            protected override void Context()
-            {
-                _commit = new Commit(Bucket.Default, streamId, 1, Guid.NewGuid(), 1, DateTime.Now, new LongCheckpoint(0).Value, null, null);
-
-                _hook1 = A.Fake<IPipelineHook>();
-                A.CallTo(() => _hook1.Select(_commit)).Returns(_commit);
-                pipelineHooks.Add(_hook1);
-
-                _hook2 = A.Fake<IPipelineHook>();
-                A.CallTo(() => _hook2.Select(_commit)).Returns(_commit);
-                pipelineHooks.Add(_hook2);
-
-                A.CallTo(() => persistence.GetUndispatchedCommits()).Returns(new List<ICommit> {_commit});
-            }
-
-            protected override void Because()
-            {
-                Decorator.GetUndispatchedCommits().ToList();
-            }
-
-            [Fact]
-            public void should_call_the_underlying_persistence_to_get_events()
-            {
-                A.CallTo(() => persistence.GetUndispatchedCommits()).MustHaveHappened(Repeated.Exactly.Once);
-            }
-
-            [Fact]
-            public void should_pass_all_events_through_the_pipeline_hooks()
-            {
-                A.CallTo(() => _hook1.Select(_commit)).MustHaveHappened(Repeated.Exactly.Once);
-                A.CallTo(() => _hook2.Select(_commit)).MustHaveHappened(Repeated.Exactly.Once);
-            }
-        }
-
         public class when_purging : using_underlying_persistence
         {
             private IPipelineHook _hook;
 
-            protected override void Context()
+            protected override Task Context()
             {
                 _hook = A.Fake<IPipelineHook>();
                 pipelineHooks.Add(_hook);
             }
 
-            protected override void Because()
+            protected override Task Because()
             {
                 Decorator.Purge();
             }
@@ -291,13 +257,13 @@ namespace NEventStore
             private IPipelineHook _hook;
             private const string _bucketId = "Bucket";
 
-            protected override void Context()
+            protected override Task Context()
             {
                 _hook = A.Fake<IPipelineHook>();
                 pipelineHooks.Add(_hook);
             }
 
-            protected override void Because()
+            protected override Task Because()
             {
                 Decorator.Purge(_bucketId);
             }
@@ -315,13 +281,13 @@ namespace NEventStore
             private const string _bucketId = "Bucket";
             private const string _streamId = "Stream";
 
-            protected override void Context()
+            protected override Task Context()
             {
                 _hook = A.Fake<IPipelineHook>();
                 pipelineHooks.Add(_hook);
             }
 
-            protected override void Because()
+            protected override Task Because()
             {
                 Decorator.DeleteStream(_bucketId, _streamId);
             }

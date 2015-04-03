@@ -1,10 +1,11 @@
 namespace NEventStore.Conversion
 {
-    using System;
-    using System.Collections.Generic;
-    using System.Linq;
-    using NEventStore.Logging;
-    using NEventStore.Persistence;
+	using System;
+	using System.Collections.Generic;
+	using System.Linq;
+	using System.Threading.Tasks;
+	using NEventStore.Logging;
+	using NEventStore.Persistence;
 
     public class EventUpconverterPipelineHook : PipelineHookBase
     {
@@ -27,7 +28,7 @@ namespace NEventStore.Conversion
             GC.SuppressFinalize(this);
         }
 
-        public override ICommit Select(ICommit committed)
+        public override Task<ICommit> Select(ICommit committed)
         {
             bool converted = false;
             var eventMessages = committed
@@ -45,17 +46,19 @@ namespace NEventStore.Conversion
                 .ToList();
             if (!converted)
             {
-                return committed;
+                return Task.FromResult(committed);
             }
-            return new Commit(committed.BucketId,
-                committed.StreamId,
-                committed.StreamRevision,
-                committed.CommitId,
-                committed.CommitSequence,
-                committed.CommitStamp,
-                committed.CheckpointToken,
-                committed.Headers,
-                eventMessages);
+            return Task.FromResult<ICommit>(
+				new Commit(
+					committed.BucketId,
+					committed.StreamId,
+					committed.StreamRevision,
+					committed.CommitId,
+					committed.CommitSequence,
+					committed.CommitStamp,
+					committed.CheckpointToken,
+					committed.Headers,
+					eventMessages));
         }
 
         protected virtual void Dispose(bool disposing)

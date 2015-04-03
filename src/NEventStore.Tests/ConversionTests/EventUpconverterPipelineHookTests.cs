@@ -1,14 +1,15 @@
 ﻿namespace NEventStore.ConversionTests
 {
-    using System;
-    using System.Collections.Generic;
-    using System.Linq;
-    using System.Reflection;
-    using NEventStore.Conversion;
-    using NEventStore.Persistence;
-    using NEventStore.Persistence.AcceptanceTests.BDD;
-    using Xunit;
-    using Xunit.Should;
+	using System;
+	using System.Collections.Generic;
+	using System.Linq;
+	using System.Reflection;
+	using System.Threading.Tasks;
+	using FluentAssertions;
+	using NEventStore.Conversion;
+	using NEventStore.Persistence;
+	using NEventStore.Persistence.AcceptanceTests.BDD;
+	using Xunit;
 
     public class when_opening_a_commit_that_does_not_have_convertible_events : using_event_converter
     {
@@ -16,26 +17,27 @@
 
         private ICommit _converted;
 
-        protected override void Context()
+        protected override Task Context()
         {
             _commit =  CreateCommit(new EventMessage {Body = new NonConvertingEvent()});
+			return Task.FromResult(true);
         }
 
-        protected override void Because()
+        protected override async Task Because()
         {
-            _converted = EventUpconverter.Select(_commit);
+            _converted = await EventUpconverter.Select(_commit);
         }
 
         [Fact]
         public void should_not_be_converted()
         {
-            _converted.ShouldBeSameAs(_commit);
+            _converted.Should().BeSameAs(_commit);
         }
 
         [Fact]
         public void should_have_the_same_instance_of_the_event()
         {
-            _converted.Events.Single().ShouldBe(_commit.Events.Single());
+            _converted.Events.Single().Should().Be(_commit.Events.Single());
         }
     }
 
@@ -46,26 +48,27 @@
         private readonly Guid _id = Guid.NewGuid();
         private ICommit _converted;
 
-        protected override void Context()
+        protected override Task Context()
         {
             _commit = CreateCommit(new EventMessage {Body = new ConvertingEvent(_id)});
+			return Task.FromResult(true);
         }
 
-        protected override void Because()
+        protected override async Task Because()
         {
-            _converted = EventUpconverter.Select(_commit);
+            _converted = await EventUpconverter.Select(_commit);
         }
 
         [Fact]
         public void should_be_of_the_converted_type()
         {
-            _converted.Events.Single().Body.GetType().ShouldBe(typeof (ConvertingEvent3));
+            _converted.Events.Single().Body.GetType().Should().Be(typeof (ConvertingEvent3));
         }
 
         [Fact]
         public void should_have_the_same_id_of_the_commited_event()
         {
-            ((ConvertingEvent3) _converted.Events.Single().Body).Id.ShouldBe(_id);
+            ((ConvertingEvent3) _converted.Events.Single().Body).Id.Should().Be(_id);
         }
     }
 
@@ -78,28 +81,29 @@
         private ICommit _converted;
         private EventMessage _eventMessage;
 
-        protected override void Context()
+        protected override Task Context()
         {
             _eventMessage = new EventMessage {Body = new ConvertingEvent2(_id, "FooEvent")};
 
             _commit = CreateCommit(_eventMessage);
+			return Task.FromResult(true);
         }
 
-        protected override void Because()
+        protected override async Task Because()
         {
-            _converted = EventUpconverter.Select(_commit);
+            _converted = await EventUpconverter.Select(_commit);
         }
 
         [Fact]
         public void should_be_of_the_converted_type()
         {
-            _converted.Events.Single().Body.GetType().ShouldBe(typeof (ConvertingEvent3));
+            _converted.Events.Single().Body.GetType().Should().Be(typeof (ConvertingEvent3));
         }
 
         [Fact]
         public void should_have_the_same_id_of_the_commited_event()
         {
-            ((ConvertingEvent3) _converted.Events.Single().Body).Id.ShouldBe(_id);
+            ((ConvertingEvent3) _converted.Events.Single().Body).Id.Should().Be(_id);
         }
     }
 

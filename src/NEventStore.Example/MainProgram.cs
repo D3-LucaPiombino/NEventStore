@@ -1,10 +1,10 @@
 namespace NEventStore.Example
 {
-    using System;
-    using System.Transactions;
-    using NEventStore;
-    using NEventStore.Dispatcher;
-    using NEventStore.Persistence.Sql.SqlDialects;
+	using System;
+	using System.Threading.Tasks;
+	using System.Transactions;
+	using NEventStore;
+	using NEventStore.Persistence.Sql.SqlDialects;
 
     internal static class MainProgram
 	{
@@ -17,13 +17,18 @@ namespace NEventStore.Example
 
 		private static void Main()
 		{
+			MainAsync().Wait();
+		}
+
+		private static async Task MainAsync()
+		{
 			using (var scope = new TransactionScope())
 			using (store = WireupEventStore())
 			{
-				OpenOrCreateStream();
-				AppendToStream();
-				TakeSnapshot();
-				LoadFromSnapshotForwardAndAppend();
+				await OpenOrCreateStream();
+				await AppendToStream();
+				await TakeSnapshot();
+				await LoadFromSnapshotForwardAndAppend();
 				scope.Complete();
 			}
 
@@ -45,64 +50,47 @@ namespace NEventStore.Example
 						.Compress()
 						.EncryptWith(EncryptionKey)
 				.HookIntoPipelineUsing(new[] { new AuthorizationPipelineHook() })
-				.UsingSynchronousDispatchScheduler()
-					.DispatchTo(new DelegateMessageDispatcher(DispatchCommit))
 				.Build();
 		}
-		private static void DispatchCommit(ICommit commit)
-		{
-			// This is where we'd hook into our messaging infrastructure, such as NServiceBus,
-			// MassTransit, WCF, or some other communications infrastructure.
-			// This can be a class as well--just implement IDispatchCommits.
-			try
-			{
-				foreach (var @event in commit.Events)
-					Console.WriteLine(Resources.MessagesDispatched + ((SomeDomainEvent)@event.Body).Value);
-			}
-			catch (Exception)
-			{
-				Console.WriteLine(Resources.UnableToDispatch);
-			}
-		}
-
-		private static void OpenOrCreateStream()
+		
+		private static async Task OpenOrCreateStream()
 		{
 			// we can call CreateStream(StreamId) if we know there isn't going to be any data.
 			// or we can call OpenStream(StreamId, 0, int.MaxValue) to read all commits,
 			// if no commits exist then it creates a new stream for us.
-			using (var stream = store.OpenStream(StreamId, 0, int.MaxValue))
+			using (var stream = await store.OpenStream(StreamId, 0, int.MaxValue))
 			{
 				var @event = new SomeDomainEvent { Value = "Initial event." };
 
 				stream.Add(new EventMessage { Body = @event });
-				stream.CommitChanges(Guid.NewGuid());
+				await stream.CommitChanges(Guid.NewGuid());
 			}
 		}
-		private static void AppendToStream()
+		private static async Task AppendToStream()
 		{
-			using (var stream = store.OpenStream(StreamId))
+			using (var stream = await store.OpenStream(StreamId))
 			{
 				var @event = new SomeDomainEvent { Value = "Second event." };
 
 				stream.Add(new EventMessage { Body = @event });
-				stream.CommitChanges(Guid.NewGuid());
+				await stream.CommitChanges(Guid.NewGuid());
 			}
 		}
-		private static void TakeSnapshot()
+		private static Task TakeSnapshot()
 		{
 			var memento = new AggregateMemento { Value = "snapshot" };
-			store.Advanced.AddSnapshot(new Snapshot(StreamId.ToString(), 2, memento));
+			return store.Advanced.AddSnapshot(new Snapshot(StreamId.ToString(), 2, memento));
 		}
-		private static void LoadFromSnapshotForwardAndAppend()
+		private static async Task LoadFromSnapshotForwardAndAppend()
 		{
-			var latestSnapshot = store.Advanced.GetSnapshot(StreamId, int.MaxValue);
+			var latestSnapshot = await store.Advanced.GetSnapshot(StreamId, int.MaxValue);
 
-			using (var stream = store.OpenStream(latestSnapshot, int.MaxValue))
+			using (var stream = await store.OpenStream(latestSnapshot, int.MaxValue))
 			{
 				var @event = new SomeDomainEvent { Value = "Third event (first one after a snapshot)." };
 
 				stream.Add(new EventMessage { Body = @event });
-				stream.CommitChanges(Guid.NewGuid());
+				await stream.CommitChanges(Guid.NewGuid());
 			}
 		}
 	}

@@ -1,6 +1,7 @@
 namespace NEventStore.Example
 {
     using System;
+	using System.Threading.Tasks;
 
     public class AuthorizationPipelineHook : PipelineHookBase
     {
@@ -10,26 +11,27 @@ namespace NEventStore.Example
             GC.SuppressFinalize(this);
         }
 
-        public override ICommit Select(ICommit committed)
+        public override Task<ICommit> Select(ICommit committed)
         {
             // return null if the user isn't authorized to see this commit
-            return committed;
+            return Task.FromResult(committed);
         }
 
-        public override void PostCommit(ICommit committed)
+        public override Task<bool> PreCommit(CommitAttempt attempt)
+        {
+            // Can easily do logging or other such activities here
+            return Task.FromResult(true); // true == allow commit to continue, false = stop.
+        }
+
+        public override Task PostCommit(ICommit committed)
         {
             // anything to do after the commit has been persisted.
+			return Task.FromResult(true);
         }
 
         protected virtual void Dispose(bool disposing)
         {
             // no op
-        }
-
-        public override bool PreCommit(CommitAttempt attempt)
-        {
-            // Can easily do logging or other such activities here
-            return true; // true == allow commit to continue, false = stop.
         }
     }
 }

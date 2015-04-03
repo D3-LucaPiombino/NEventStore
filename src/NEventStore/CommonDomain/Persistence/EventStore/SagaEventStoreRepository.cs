@@ -1,9 +1,10 @@
 namespace CommonDomain.Persistence.EventStore
 {
 	using System;
+	using System.Collections.Concurrent;
 	using System.Collections.Generic;
 	using System.Linq;
-
+	using System.Threading.Tasks;
 	using NEventStore;
 	using NEventStore.Persistence;
 
@@ -16,8 +17,7 @@ namespace CommonDomain.Persistence.EventStore
 		private readonly IStoreEvents _eventStore;
 
 		private readonly IConstructSagas _factory;
-
-		private readonly IDictionary<string, IEventStream> _streams = new Dictionary<string, IEventStream>();
+		private readonly ConcurrentDictionary<string, Task<IEventStream>> _streams = new ConcurrentDictionary<string, Task<IEventStream>>();
 
 		public SagaEventStoreRepository(IStoreEvents eventStore, IConstructSagas factory)
 		{
@@ -31,12 +31,12 @@ namespace CommonDomain.Persistence.EventStore
 			GC.SuppressFinalize(this);
 		}
 
-		public TSaga GetById<TSaga>(string bucketId, string sagaId) where TSaga : class, ISaga
+		public async Task<TSaga> GetById<TSaga>(string bucketId, string sagaId) where TSaga : class, ISaga
 		{
-			return BuildSaga<TSaga>(sagaId, OpenStream(bucketId, sagaId));
+            return BuildSaga<TSaga>(sagaId, await OpenStream(bucketId, sagaId));
 		}
 
-		public void Save(string bucketId, ISaga saga, Guid commitId, Action<IDictionary<string, object>> updateHeaders)
+        public async Task Save(string bucketId, ISaga saga, Guid commitId, Action<IDictionary<string, object>> updateHeaders)
 		{
 			if (saga == null)
 			{
@@ -44,9 +44,9 @@ namespace CommonDomain.Persistence.EventStore
 			}
 
 			Dictionary<string, object> headers = PrepareHeaders(saga, updateHeaders);
-			IEventStream stream = PrepareStream(bucketId, saga, headers);
+            IEventStream stream = await PrepareStream(bucketId, saga, headers);
 
-			Persist(stream, commitId);
+            await Persist(stream, commitId);
 
 			saga.ClearUncommittedEvents();
 			saga.ClearUndispatchedMessages();
@@ -70,25 +70,22 @@ namespace CommonDomain.Persistence.EventStore
 			}
 		}
 
-		private IEventStream OpenStream(string bucketId, string sagaId)
+		private Task<IEventStream> OpenStream(string bucketId, string sagaId)
 		{
-			IEventStream stream;
-			var sagaKey = bucketId + "+" + sagaId;
-			if (_streams.TryGetValue(sagaKey, out stream))
-			{
-				return stream;
-			}
-
-			try
-			{
-				stream = _eventStore.OpenStream(bucketId, sagaId, 0, int.MaxValue);
-			}
-			catch (StreamNotFoundException)
-			{
-				stream = _eventStore.CreateStream(bucketId, sagaId);
-			}
-
-			return _streams[sagaKey] = stream;
+            var sagaKey = bucketId + "+" + sagaId;
+			return _streams.GetOrAdd(
+				sagaKey,
+				(sk) =>
+				{
+					try
+					{
+						return _eventStore.OpenStream(bucketId, sagaId, 0, int.MaxValue);
+					}
+					catch (StreamNotFoundException)
+					{
+						return _eventStore.CreateStream(bucketId, sagaId);
+					}
+				});
 		}
 
 		private TSaga BuildSaga<TSaga>(string sagaId, IEventStream stream) where TSaga : class, ISaga
@@ -125,14 +122,12 @@ namespace CommonDomain.Persistence.EventStore
 			return headers;
 		}
 
-		private IEventStream PrepareStream(string bucketId, ISaga saga, Dictionary<string, object> headers)
+		private async Task<IEventStream> PrepareStream(string bucketId, ISaga saga, Dictionary<string, object> headers)
 		{
-			IEventStream stream;
-			var sagaKey = bucketId + "+" + saga.Id;
-			if (!_streams.TryGetValue(sagaKey, out stream))
-			{
-				_streams[sagaKey] = stream = _eventStore.CreateStream(bucketId, saga.Id);
-			}
+            var sagaKey = bucketId + "+" + saga.Id;
+			IEventStream stream = await _streams.GetOrAdd(
+				sagaKey,
+				(sid)=> _eventStore.CreateStream(bucketId, saga.Id));
 
 			foreach (var item in headers)
 			{
@@ -144,11 +139,11 @@ namespace CommonDomain.Persistence.EventStore
 			return stream;
 		}
 
-		private static void Persist(IEventStream stream, Guid commitId)
+		private static async Task Persist(IEventStream stream, Guid commitId)
 		{
 			try
 			{
-				stream.CommitChanges(commitId);
+				await stream.CommitChanges(commitId);
 			}
 			catch (DuplicateCommitException)
 			{

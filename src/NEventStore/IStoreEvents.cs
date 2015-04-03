@@ -1,7 +1,8 @@
 namespace NEventStore
 {
-    using System;
-    using NEventStore.Persistence;
+	using System;
+	using System.Threading.Tasks;
+	using NEventStore.Persistence;
 
     /// <summary>
     ///     Indicates the ability to store and retreive a stream of events.
@@ -22,9 +23,9 @@ namespace NEventStore
         /// <param name="bucketId">The value which uniquely identifies bucket the stream belongs to.</param>
         /// <param name="streamId">The value which uniquely identifies the stream within the bucket to be created.</param>
         /// <returns>An empty stream.</returns>
-        IEventStream CreateStream(string bucketId, string streamId);
+        Task<IEventStream> CreateStream(string bucketId, string streamId);
 
-        /// <summary>
+		/// <summary>
         ///     Reads the stream indicated from the minimum revision specified up to the maximum revision specified or creates
         ///     an empty stream if no commits are found and a minimum revision of zero is provided.
         /// </summary>
@@ -36,7 +37,7 @@ namespace NEventStore
         /// <exception cref="StorageException" />
         /// <exception cref="StorageUnavailableException" />
         /// <exception cref="StreamNotFoundException" />
-        IEventStream OpenStream(string bucketId, string streamId, int minRevision, int maxRevision);
+        Task<IEventStream> OpenStream(string bucketId, string streamId, int minRevision, int maxRevision);
 
         /// <summary>
         ///     Reads the stream indicated from the point of the snapshot forward until the maximum revision specified.
@@ -46,11 +47,6 @@ namespace NEventStore
         /// <returns>A series of committed events represented as a stream.</returns>
         /// <exception cref="StorageException" />
         /// <exception cref="StorageUnavailableException" />
-        IEventStream OpenStream(ISnapshot snapshot, int maxRevision);
-
-        /// <summary>
-        ///    Starts the dispatch scheduler. If the dispatch scheduler is set to startup automatically, this will not have any affect.
-        /// </summary>
-        void StartDispatchScheduler();
+        Task<IEventStream> OpenStream(ISnapshot snapshot, int maxRevision);
     }
 }

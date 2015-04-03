@@ -1,7 +1,8 @@
 namespace NEventStore
 {
-    using System.Collections.Generic;
-    using NEventStore.Persistence;
+	using System.Collections.Generic;
+	using System.Threading.Tasks;
+	using NEventStore.Persistence;
 
     /// <summary>
     ///     Indicates the ability to commit events and access events to and from a given stream.
@@ -22,7 +23,7 @@ namespace NEventStore
         /// <returns>A series of committed events from the stream specified sorted in ascending order.</returns>
         /// <exception cref="StorageException" />
         /// <exception cref="StorageUnavailableException" />
-        IEnumerable<ICommit> GetFrom(string bucketId, string streamId, int minRevision, int maxRevision);
+        Task<IEnumerable<ICommit>> GetFrom(string bucketId, string streamId, int minRevision, int maxRevision);
 
         /// <summary>
         ///     Writes the to-be-commited events provided to the underlying persistence mechanism.
@@ -31,6 +32,6 @@ namespace NEventStore
         /// <exception cref="ConcurrencyException" />
         /// <exception cref="StorageException" />
         /// <exception cref="StorageUnavailableException" />
-        ICommit Commit(CommitAttempt attempt);
+        Task<ICommit> Commit(CommitAttempt attempt);
     }
 }

@@ -2,20 +2,21 @@
 {
     using System;
     using System.Data;
+	using System.Threading.Tasks;
     using System.Transactions;
     using FakeItEasy;
+	using FluentAssertions;
     using NEventStore.Persistence.AcceptanceTests;
     using NEventStore.Persistence.AcceptanceTests.BDD;
     using NEventStore.Persistence.Sql.SqlDialects;
     using NEventStore.Serialization;
     using Xunit;
-    using Xunit.Should;
 
     public class when_persisting_a_commit : SpecificationBase
     {
         private InheritedSqlPersistenceEngine _sqlPersistenceEngine;
 
-        protected override void Context()
+        protected override Task Context()
         {
             var fakeConnectionFactory = A.Fake<IConnectionFactory>();
             var fakeSqlDialect = A.Fake<ISqlDialect>();
@@ -28,19 +29,21 @@
             A.CallTo(() => fakeDbStatement.ExecuteScalar(A<string>.Ignored)).Returns(1);
             var fakeSerialize = A.Fake<ISerialize>();
             _sqlPersistenceEngine = new InheritedSqlPersistenceEngine(fakeConnectionFactory, fakeSqlDialect, fakeSerialize,TransactionScopeOption.Suppress, 128);
+			return Task.FromResult(true);
         }
 
-        protected override void Because()
+        protected override Task Because()
         {
             _sqlPersistenceEngine.Commit(
                 new CommitAttempt("streamid", 1, Guid.NewGuid(), 1, SystemTime.UtcNow, null, new[] {new EventMessage()}));
+			return Task.FromResult(true);
         }
 
         [Fact]
         public void should_raise_BeforePersistCommit_event()
         {
-            _sqlPersistenceEngine.RaisedCommand.ShouldNotBeNull();
-            _sqlPersistenceEngine.RaisedCommitAttempt.ShouldNotBeNull();
+            _sqlPersistenceEngine.RaisedCommand.Should().NotBeNull();
+            _sqlPersistenceEngine.RaisedCommitAttempt.Should().NotBeNull();
         }
 
         private class InheritedSqlPersistenceEngine : SqlPersistenceEngine
@@ -79,7 +82,7 @@
         private SqlPersistenceEngine _sqlPersistenceEngine;
         private Exception _exception;
 
-        protected override void Context()
+        protected override Task Context()
         {
             _sqlPersistenceEngine = new SqlPersistenceEngine(
                 A.Fake<IConnectionFactory>(),
@@ -88,18 +91,19 @@
                 TransactionScopeOption.Suppress,
                 128,
                 new DelegateStreamIdHasher(streamId => null));
+			return Task.FromResult(true);
         }
 
-        protected override void Because()
+        protected override async Task Because()
         {
-            _exception = Catch.Exception(() => _sqlPersistenceEngine.Commit(
+            _exception = await Catch.Exception(() => _sqlPersistenceEngine.Commit(
                 new CommitAttempt("streamId", 1, Guid.NewGuid(), 1, SystemTime.UtcNow, null, new[] {new EventMessage()})));
         }
 
         [Fact]
         public void should_raise_invalid_operation_exception()
         {
-            _exception.ShouldBeInstanceOf<InvalidOperationException>();
+            _exception.Should().BeOfType<InvalidOperationException>();
         }
     }
 
@@ -108,7 +112,7 @@
         private SqlPersistenceEngine _sqlPersistenceEngine;
         private Exception _exception;
 
-        protected override void Context()
+        protected override Task Context()
         {
             _sqlPersistenceEngine = new SqlPersistenceEngine(
                 A.Fake<IConnectionFactory>(),
@@ -117,18 +121,19 @@
                 TransactionScopeOption.Suppress,
                 128,
                 new DelegateStreamIdHasher(streamId => " "));
+			return Task.FromResult(true);
         }
 
-        protected override void Because()
+        protected override async Task Because()
         {
-            _exception = Catch.Exception(() => _sqlPersistenceEngine.Commit(
+            _exception = await Catch.Exception(() => _sqlPersistenceEngine.Commit(
                 new CommitAttempt("streamId", 1, Guid.NewGuid(), 1, SystemTime.UtcNow, null, new[] { new EventMessage() })));
         }
 
         [Fact]
         public void should_raise_invalid_operation_exception()
         {
-            _exception.ShouldBeInstanceOf<InvalidOperationException>();
+            _exception.Should().BeOfType<InvalidOperationException>();
         }
     }
 
@@ -137,7 +142,7 @@
         private SqlPersistenceEngine _sqlPersistenceEngine;
         private Exception _exception;
 
-        protected override void Context()
+        protected override Task Context()
         {
             _sqlPersistenceEngine = new SqlPersistenceEngine(
                 A.Fake<IConnectionFactory>(),
@@ -146,18 +151,19 @@
                 TransactionScopeOption.Suppress,
                 128,
                 new DelegateStreamIdHasher(streamId => string.Empty));
+			return Task.FromResult(true);
         }
 
-        protected override void Because()
+        protected override async Task Because()
         {
-            _exception = Catch.Exception(() => _sqlPersistenceEngine.Commit(
+            _exception = await Catch.Exception(() => _sqlPersistenceEngine.Commit(
                 new CommitAttempt("streamId", 1, Guid.NewGuid(), 1, SystemTime.UtcNow, null, new[] { new EventMessage() })));
         }
 
         [Fact]
         public void should_raise_invalid_operation_exception()
         {
-            _exception.ShouldBeInstanceOf<InvalidOperationException>();
+            _exception.Should().BeOfType<InvalidOperationException>();
         }
     }
 
@@ -166,7 +172,7 @@
         private SqlPersistenceEngine _sqlPersistenceEngine;
         private Exception _exception;
 
-        protected override void Context()
+        protected override Task Context()
         {
             _sqlPersistenceEngine = new SqlPersistenceEngine(
                 A.Fake<IConnectionFactory>(),
@@ -175,18 +181,19 @@
                 TransactionScopeOption.Suppress,
                 128,
                 new DelegateStreamIdHasher(streamId => "0123456789012345678901234567890123456789X"));
+			return Task.FromResult(true);
         }
 
-        protected override void Because()
+        protected override async Task Because()
         {
-            _exception = Catch.Exception(() => _sqlPersistenceEngine.Commit(
+            _exception = await Catch.Exception(() => _sqlPersistenceEngine.Commit(
                 new CommitAttempt("streamId", 1, Guid.NewGuid(), 1, SystemTime.UtcNow, null, new[] { new EventMessage() })));
         }
 
         [Fact]
         public void should_raise_invalid_operation_exception()
         {
-            _exception.ShouldBeInstanceOf<InvalidOperationException>();
+            _exception.Should().BeOfType<InvalidOperationException>();
         }
     }
 
@@ -194,19 +201,19 @@
     {
         private ICheckpoint _checkpoint;
 
-        protected override void Because()
+        protected override async Task Because()
         {
             var persistence = new SqlPersistenceFactory("Connection",
                 new BinarySerializer(),
                 new MsSqlDialect()).Build();
 
-            _checkpoint = persistence.GetCheckpoint();
+            _checkpoint = await persistence.GetCheckpoint();
         }
 
         [Fact]
         public void should_not_be_null()
         {
-            _checkpoint.ShouldNotBeNull();
+            _checkpoint.Should().NotBeNull();
         }
     }
 }

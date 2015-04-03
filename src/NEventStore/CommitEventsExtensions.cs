@@ -1,8 +1,9 @@
 namespace NEventStore
 {
-    using System;
-    using System.Collections.Generic;
-    using NEventStore.Persistence;
+	using System;
+	using System.Collections.Generic;
+	using System.Threading.Tasks;
+	using NEventStore.Persistence;
 
     public static class CommitEventsExtensions
     {
@@ -17,7 +18,7 @@ namespace NEventStore
         /// <returns>A series of committed events from the stream specified sorted in ascending order.</returns>
         /// <exception cref="StorageException" />
         /// <exception cref="StorageUnavailableException" />
-        public static IEnumerable<ICommit> GetFrom(this ICommitEvents commitEvents, string streamId, int minRevision, int maxRevision)
+        public static Task<IEnumerable<ICommit>> GetFrom(this ICommitEvents commitEvents, string streamId, int minRevision, int maxRevision)
         {
             if (commitEvents == null)
             {

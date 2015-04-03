@@ -1,214 +1,256 @@
 namespace NEventStore
 {
-    using System;
-    using System.Collections.Generic;
-    using System.Diagnostics.CodeAnalysis;
-    using System.Linq;
-    using NEventStore.Logging;
+	using System;
+	using System.Collections.Generic;
+	using System.Diagnostics.CodeAnalysis;
+	using System.Linq;
+	using System.Threading.Tasks;
+	using NEventStore.Logging;
 
-    [SuppressMessage("Microsoft.Naming", "CA1711:IdentifiersShouldNotHaveIncorrectSuffix",
-        Justification = "This behaves like a stream--not a .NET 'Stream' object, but a stream nonetheless.")]
-    public sealed class OptimisticEventStream : IEventStream
-    {
-        private static readonly ILog Logger = LogFactory.BuildLogger(typeof (OptimisticEventStream));
-        private readonly ICollection<EventMessage> _committed = new LinkedList<EventMessage>();
-        private readonly IDictionary<string, object> _committedHeaders = new Dictionary<string, object>();
-        private readonly ICollection<EventMessage> _events = new LinkedList<EventMessage>();
-        private readonly ICollection<Guid> _identifiers = new HashSet<Guid>();
-        private readonly ICommitEvents _persistence;
-        private readonly IDictionary<string, object> _uncommittedHeaders = new Dictionary<string, object>();
-        private bool _disposed;
+	[SuppressMessage("Microsoft.Naming", "CA1711:IdentifiersShouldNotHaveIncorrectSuffix",
+		Justification = "This behaves like a stream--not a .NET 'Stream' object, but a stream nonetheless.")]
+	public sealed class OptimisticEventStream : IEventStream
+	{
+		private static readonly ILog Logger = LogFactory.BuildLogger(typeof(OptimisticEventStream));
+		private readonly ICollection<EventMessage> _committed = new LinkedList<EventMessage>();
+		private readonly IDictionary<string, object> _committedHeaders = new Dictionary<string, object>();
+		private readonly ICollection<EventMessage> _events = new LinkedList<EventMessage>();
+		private readonly ICollection<Guid> _identifiers = new HashSet<Guid>();
+		private readonly ICommitEvents _persistence;
+		private readonly IDictionary<string, object> _uncommittedHeaders = new Dictionary<string, object>();
+		private bool _disposed;
 
-        public OptimisticEventStream(string bucketId, string streamId, ICommitEvents persistence)
-        {
-            BucketId = bucketId;
-            StreamId = streamId;
-            _persistence = persistence;
-        }
+		public OptimisticEventStream(string bucketId, string streamId, ICommitEvents persistence)
+		{
+			BucketId = bucketId;
+			StreamId = streamId;
+			_persistence = persistence;
+		}
 
-        public OptimisticEventStream(string bucketId, string streamId, ICommitEvents persistence, int minRevision, int maxRevision)
-            : this(bucketId, streamId, persistence)
-        {
-            IEnumerable<ICommit> commits = persistence.GetFrom(bucketId, streamId, minRevision, maxRevision);
-            PopulateStream(minRevision, maxRevision, commits);
+		public string BucketId
+		{
+			get;
+			private set;
+		}
+		public string StreamId
+		{
+			get;
+			private set;
+		}
+		public int StreamRevision
+		{
+			get;
+			private set;
+		}
+		public int CommitSequence
+		{
+			get;
+			private set;
+		}
 
-            if (minRevision > 0 && _committed.Count == 0)
-            {
-                throw new StreamNotFoundException();
-            }
-        }
+		public ICollection<EventMessage> CommittedEvents
+		{
+			get
+			{
+				return new ImmutableCollection<EventMessage>(_committed);
+			}
+		}
 
-        public OptimisticEventStream(ISnapshot snapshot, ICommitEvents persistence, int maxRevision)
-            : this(snapshot.BucketId, snapshot.StreamId, persistence)
-        {
-            IEnumerable<ICommit> commits = persistence.GetFrom(snapshot.BucketId, snapshot.StreamId, snapshot.StreamRevision, maxRevision);
-            PopulateStream(snapshot.StreamRevision + 1, maxRevision, commits);
-            StreamRevision = snapshot.StreamRevision + _committed.Count;
-        }
+		public IDictionary<string, object> CommittedHeaders
+		{
+			get
+			{
+				return _committedHeaders;
+			}
+		}
 
-        public string BucketId { get; private set; }
-        public string StreamId { get; private set; }
-        public int StreamRevision { get; private set; }
-        public int CommitSequence { get; private set; }
+		public ICollection<EventMessage> UncommittedEvents
+		{
+			get
+			{
+				return new ImmutableCollection<EventMessage>(_events);
+			}
+		}
 
-        public ICollection<EventMessage> CommittedEvents
-        {
-            get { return new ImmutableCollection<EventMessage>(_committed); }
-        }
+		public IDictionary<string, object> UncommittedHeaders
+		{
+			get
+			{
+				return _uncommittedHeaders;
+			}
+		}
 
-        public IDictionary<string, object> CommittedHeaders
-        {
-            get { return _committedHeaders; }
-        }
+		public async Task Initialize(int minRevision, int maxRevision)
+		{
+			IEnumerable<ICommit> commits = await _persistence.GetFrom(BucketId, StreamId, minRevision, maxRevision);
+			PopulateStream(minRevision, maxRevision, commits);
 
-        public ICollection<EventMessage> UncommittedEvents
-        {
-            get { return new ImmutableCollection<EventMessage>(_events); }
-        }
+			if (minRevision > 0 && _committed.Count == 0)
+			{
+				throw new StreamNotFoundException();
+			}
+		}
 
-        public IDictionary<string, object> UncommittedHeaders
-        {
-            get { return _uncommittedHeaders; }
-        }
+		public async Task Initialize(ISnapshot snapshot, int maxRevision)
+		{
+			if (snapshot.BucketId != BucketId || snapshot.StreamId != StreamId)
+			{
+				throw new ArgumentException("Invalid snapshot.");
+			}
 
-        public void Add(EventMessage uncommittedEvent)
-        {
-            if (uncommittedEvent == null || uncommittedEvent.Body == null)
-            {
-                return;
-            }
+			IEnumerable<ICommit> commits = await _persistence.GetFrom(snapshot.BucketId, snapshot.StreamId, snapshot.StreamRevision, maxRevision);
+			PopulateStream(snapshot.StreamRevision + 1, maxRevision, commits);
+			StreamRevision = snapshot.StreamRevision + _committed.Count;
+		}
 
-            Logger.Debug(Resources.AppendingUncommittedToStream, StreamId);
-            _events.Add(uncommittedEvent);
-        }
+		public void Add(EventMessage uncommittedEvent)
+		{
+			if (uncommittedEvent == null || uncommittedEvent.Body == null)
+			{
+				return;
+			}
 
-        public void CommitChanges(Guid commitId)
-        {
-            Logger.Debug(Resources.AttemptingToCommitChanges, StreamId);
+			Logger.Debug(Resources.AppendingUncommittedToStream, StreamId);
+			_events.Add(uncommittedEvent);
+		}
 
-            if (_identifiers.Contains(commitId))
-            {
-                throw new DuplicateCommitException();
-            }
+		public async Task CommitChanges(Guid commitId)
+		{
+			Logger.Debug(Resources.AttemptingToCommitChanges, StreamId);
 
-            if (!HasChanges())
-            {
-                return;
-            }
+			if (_identifiers.Contains(commitId))
+			{
+				throw new DuplicateCommitException();
+			}
 
-            try
-            {
-                PersistChanges(commitId);
-            }
-            catch (ConcurrencyException)
-            {
-                Logger.Info(Resources.UnderlyingStreamHasChanged, StreamId);
-                IEnumerable<ICommit> commits = _persistence.GetFrom(BucketId, StreamId, StreamRevision + 1, int.MaxValue);
-                PopulateStream(StreamRevision + 1, int.MaxValue, commits);
+			if (!HasChanges())
+			{
+				return;
+			}
 
-                throw;
-            }
-        }
+			ConcurrencyException exceptionToThrow = null;
+			try
+			{
+				await PersistChanges(commitId);
+			}
+			catch (ConcurrencyException exception)
+			{
+				exceptionToThrow = exception;
+				Logger.Info(Resources.UnderlyingStreamHasChanged, StreamId);
+			}
 
-        public void ClearChanges()
-        {
-            Logger.Debug(Resources.ClearingUncommittedChanges, StreamId);
-            _events.Clear();
-            _uncommittedHeaders.Clear();
-        }
+			if (exceptionToThrow != null)
+			{
+				IEnumerable<ICommit> commits = await _persistence.GetFrom(BucketId, StreamId, StreamRevision + 1, int.MaxValue);
+				PopulateStream(StreamRevision + 1, int.MaxValue, commits);
 
-        private void PopulateStream(int minRevision, int maxRevision, IEnumerable<ICommit> commits)
-        {
-            foreach (var commit in commits ?? Enumerable.Empty<ICommit>())
-            {
-                Logger.Verbose(Resources.AddingCommitsToStream, commit.CommitId, commit.Events.Count, StreamId);
-                _identifiers.Add(commit.CommitId);
+				throw exceptionToThrow;
+			}
+		}
 
-                CommitSequence = commit.CommitSequence;
-                int currentRevision = commit.StreamRevision - commit.Events.Count + 1;
-                if (currentRevision > maxRevision)
-                {
-                    return;
-                }
+		public void ClearChanges()
+		{
+			Logger.Debug(Resources.ClearingUncommittedChanges, StreamId);
+			_events.Clear();
+			_uncommittedHeaders.Clear();
+		}
 
-                CopyToCommittedHeaders(commit);
-                CopyToEvents(minRevision, maxRevision, currentRevision, commit);
-            }
-        }
+		private void PopulateStream(int minRevision, int maxRevision, IEnumerable<ICommit> commits)
+		{
+			foreach (var commit in commits ?? Enumerable.Empty<ICommit>())
+			{
+				Logger.Verbose(Resources.AddingCommitsToStream, commit.CommitId, commit.Events.Count, StreamId);
+				_identifiers.Add(commit.CommitId);
 
-        private void CopyToCommittedHeaders(ICommit commit)
-        {
-            foreach (var key in commit.Headers.Keys)
-            {
-                _committedHeaders[key] = commit.Headers[key];
-            }
-        }
+				CommitSequence = commit.CommitSequence;
+				int currentRevision = commit.StreamRevision - commit.Events.Count + 1;
+				if (currentRevision > maxRevision)
+				{
+					return;
+				}
 
-        private void CopyToEvents(int minRevision, int maxRevision, int currentRevision, ICommit commit)
-        {
-            foreach (var @event in commit.Events)
-            {
-                if (currentRevision > maxRevision)
-                {
-                    Logger.Debug(Resources.IgnoringBeyondRevision, commit.CommitId, StreamId, maxRevision);
-                    break;
-                }
+				CopyToCommittedHeaders(commit);
+				CopyToEvents(minRevision, maxRevision, currentRevision, commit);
+			}
+		}
 
-                if (currentRevision++ < minRevision)
-                {
-                    Logger.Debug(Resources.IgnoringBeforeRevision, commit.CommitId, StreamId, maxRevision);
-                    continue;
-                }
+		private void CopyToCommittedHeaders(ICommit commit)
+		{
+			foreach (var key in commit.Headers.Keys)
+			{
+				_committedHeaders[key] = commit.Headers[key];
+			}
+		}
 
-                _committed.Add(@event);
-                StreamRevision = currentRevision - 1;
-            }
-        }
+		private void CopyToEvents(int minRevision, int maxRevision, int currentRevision, ICommit commit)
+		{
+			foreach (var @event in commit.Events)
+			{
+				if (currentRevision > maxRevision)
+				{
+					Logger.Debug(Resources.IgnoringBeyondRevision, commit.CommitId, StreamId, maxRevision);
+					break;
+				}
 
-        private bool HasChanges()
-        {
-            if (_disposed)
-            {
-                throw new ObjectDisposedException(Resources.AlreadyDisposed);
-            }
+				if (currentRevision++ < minRevision)
+				{
+					Logger.Debug(Resources.IgnoringBeforeRevision, commit.CommitId, StreamId, maxRevision);
+					continue;
+				}
 
-            if (_events.Count > 0)
-            {
-                return true;
-            }
+				_committed.Add(@event);
+				StreamRevision = currentRevision - 1;
+			}
+		}
 
-            Logger.Warn(Resources.NoChangesToCommit, StreamId);
-            return false;
-        }
+		private bool HasChanges()
+		{
+			if (_disposed)
+			{
+				throw new ObjectDisposedException(Resources.AlreadyDisposed);
+			}
 
-        private void PersistChanges(Guid commitId)
-        {
-            CommitAttempt attempt = BuildCommitAttempt(commitId);
+			if (_events.Count > 0)
+			{
+				return true;
+			}
 
-            Logger.Debug(Resources.PersistingCommit, commitId, StreamId);
-            ICommit commit = _persistence.Commit(attempt);
+			Logger.Warn(Resources.NoChangesToCommit, StreamId);
+			return false;
+		}
 
-            PopulateStream(StreamRevision + 1, attempt.StreamRevision, new[] { commit });
-            ClearChanges();
-        }
+		private async Task PersistChanges(Guid commitId)
+		{
+			CommitAttempt attempt = BuildCommitAttempt(commitId);
 
-        private CommitAttempt BuildCommitAttempt(Guid commitId)
-        {
-            Logger.Debug(Resources.BuildingCommitAttempt, commitId, StreamId);
-            return new CommitAttempt(
-                BucketId,
-                StreamId,
-                StreamRevision + _events.Count,
-                commitId,
-                CommitSequence + 1,
-                SystemTime.UtcNow,
-                _uncommittedHeaders.ToDictionary(x => x.Key, x => x.Value),
-                _events.ToList());
-        }
+			Logger.Debug(Resources.PersistingCommit, commitId, StreamId);
+			ICommit commit = await _persistence.Commit(attempt);
 
-        public void Dispose()
-        {
-            _disposed = true;
-        }
-    }
+			if (commit != null)
+			{
+				PopulateStream(StreamRevision + 1, attempt.StreamRevision, new[] { commit });
+			}
+
+			ClearChanges();
+		}
+
+		private CommitAttempt BuildCommitAttempt(Guid commitId)
+		{
+			Logger.Debug(Resources.BuildingCommitAttempt, commitId, StreamId);
+			return new CommitAttempt(
+				BucketId,
+				StreamId,
+				StreamRevision + _events.Count,
+				commitId,
+				CommitSequence + 1,
+				SystemTime.UtcNow,
+				_uncommittedHeaders.ToDictionary(x => x.Key, x => x.Value),
+				_events.ToList());
+		}
+
+		public void Dispose()
+		{
+			_disposed = true;
+		}
+	}
 }

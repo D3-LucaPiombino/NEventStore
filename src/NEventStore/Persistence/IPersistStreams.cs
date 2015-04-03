@@ -2,6 +2,7 @@ namespace NEventStore.Persistence
 {
     using System;
     using System.Collections.Generic;
+	using System.Threading.Tasks;
 
     /// <summary>
     ///     Indicates the ability to adapt the underlying persistence infrastructure to behave like a stream of events.
@@ -21,7 +22,7 @@ namespace NEventStore.Persistence
         /// </summary>
         /// <exception cref="StorageException" />
         /// <exception cref="StorageUnavailableException" />
-        void Initialize();
+        Task Initialize();
 
         /// <summary>
         ///     Gets all commits on or after from the specified starting time.
@@ -31,21 +32,21 @@ namespace NEventStore.Persistence
         /// <returns>All commits that have occurred on or after the specified starting time.</returns>
         /// <exception cref="StorageException" />
         /// <exception cref="StorageUnavailableException" />
-        IEnumerable<ICommit> GetFrom(string bucketId, DateTime start);
+        Task<IEnumerable<ICommit>> GetFrom(string bucketId, DateTime start);
 
         /// <summary>
         ///     Gets all commits after from the specified checkpoint. Use null to get from the beginning.
         /// </summary>
         /// <param name="checkpointToken">The checkpoint token.</param>
         /// <returns>An enumerable of Commits.</returns>
-        IEnumerable<ICommit> GetFrom(string checkpointToken = null);
+		Task<IEnumerable<ICommit>> GetFrom(string checkpointToken = null);
 
         /// <summary>
         /// Gets a checkpoint object that is comparable with other checkpoints from this storage engine.
         /// </summary>
         /// <param name="checkpointToken">The checkpoint token</param>
         /// <returns>A <see cref="ICheckpoint"/> instance.</returns>
-        ICheckpoint GetCheckpoint(string checkpointToken = null);
+		Task<ICheckpoint> GetCheckpoint(string checkpointToken = null);
 
         /// <summary>
         ///     Gets all commits on or after from the specified starting time and before the specified end time.
@@ -56,47 +57,31 @@ namespace NEventStore.Persistence
         /// <returns>All commits that have occurred on or after the specified starting time and before the end time.</returns>
         /// <exception cref="StorageException" />
         /// <exception cref="StorageUnavailableException" />
-        IEnumerable<ICommit> GetFromTo(string bucketId, DateTime start, DateTime end);
-
-        /// <summary>
-        ///     Gets a set of commits that has not yet been dispatched.
-        /// </summary>
-        /// <returns>The set of commits to be dispatched.</returns>
-        /// <exception cref="StorageException" />
-        /// <exception cref="StorageUnavailableException" />
-        IEnumerable<ICommit> GetUndispatchedCommits();
-
-        /// <summary>
-        ///     Marks the commit specified as dispatched.
-        /// </summary>
-        /// <param name="commit">The commit to be marked as dispatched.</param>
-        /// <exception cref="StorageException" />
-        /// <exception cref="StorageUnavailableException" />
-        void MarkCommitAsDispatched(ICommit commit);
+		Task<IEnumerable<ICommit>> GetFromTo(string bucketId, DateTime start, DateTime end);
 
         /// <summary>
         ///     Completely DESTROYS the contents of ANY and ALL streams that have been successfully persisted.  Use with caution.
         /// </summary>
-        void Purge();
+        Task Purge();
 
         /// <summary>
         ///     Completely DESTROYS the contents of ANY and ALL streams that have been successfully persisted
         ///     in the specified bucket.  Use with caution.
         /// </summary>
-        void Purge(string bucketId);
+        Task Purge(string bucketId);
 
         /// <summary>
         ///     Completely DESTROYS the contents and schema (if applicable) containting ANY and ALL streams that have been
         ///     successfully persisted
         ///     in the specified bucket.  Use with caution.
         /// </summary>
-        void Drop();
+        Task Drop();
 
         /// <summary>
         /// Deletes a stream.
         /// </summary>
         /// <param name="bucketId">The bucket Id from which the stream is to be deleted.</param>
         /// <param name="streamId">The stream Id of the stream that is to be deleted.</param>
-        void DeleteStream(string bucketId, string streamId);
+        Task DeleteStream(string bucketId, string streamId);
     }
 }

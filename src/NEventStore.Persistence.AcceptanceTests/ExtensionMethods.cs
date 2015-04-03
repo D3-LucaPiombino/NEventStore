@@ -3,6 +3,7 @@ namespace NEventStore.Persistence.AcceptanceTests
     using System;
     using System.Collections.Generic;
     using System.Linq;
+	using System.Threading.Tasks;
 
     public static class ExtensionMethods
     {
@@ -16,19 +17,19 @@ namespace NEventStore.Persistence.AcceptanceTests
             return new LinkedList<T>(collection);
         }
 
-        public static ICommit CommitSingle(this IPersistStreams persistence, string streamId = null)
+        public static Task<ICommit> CommitSingle(this IPersistStreams persistence, string streamId = null)
         {
             CommitAttempt commitAttempt = (streamId ?? Guid.NewGuid().ToString()).BuildAttempt();
             return persistence.Commit(commitAttempt);
         }
 
-        public static ICommit CommitNext(this IPersistStreams persistence, ICommit previous)
+		public static Task<ICommit> CommitNext(this IPersistStreams persistence, ICommit previous)
         {
             var nextAttempt = previous.BuildNextAttempt();
             return persistence.Commit(nextAttempt);
         }
 
-        public static ICommit CommitNext(this IPersistStreams persistence, CommitAttempt previous)
+		public static Task<ICommit> CommitNext(this IPersistStreams persistence, CommitAttempt previous)
         {
             var nextAttempt = previous.BuildNextAttempt();
             return persistence.Commit(nextAttempt);
