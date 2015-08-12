@@ -319,10 +319,10 @@
         }
 
         [Fact]
-        public void should_observe_commit_from_bucket1()
+        public async Task should_observe_commit_from_bucket1()
         {
-            //throw new NotImplementedException();
-            _commitObserved.Wait(PollingInterval * 2).Should().Be(true);
+            var result = await Task.WhenAny(_commitObserved, Task.Delay(PollingInterval * 2));
+            result.Should().Be(_commitObserved);
             _commitObserved.Result.BucketId.Should().Be("bucket_1");
         }
     }
