@@ -1,16 +1,16 @@
 ﻿namespace NEventStore.Client
 {
-	using System;
-	using System.Collections.Generic;
-	using System.Reactive.Linq;
-	using System.Reactive.Threading.Tasks;
-	using System.Threading.Tasks;
-	using FakeItEasy;
+    using System;
+    using System.Collections.Generic;
+    using System.Reactive.Linq;
+    using System.Reactive.Threading.Tasks;
+    using System.Threading.Tasks;
+    using FakeItEasy;
 	using FluentAssertions;
-	using NEventStore.Persistence;
-	using NEventStore.Persistence.AcceptanceTests;
-	using NEventStore.Persistence.AcceptanceTests.BDD;
-	using Xunit;
+    using NEventStore.Persistence;
+    using NEventStore.Persistence.AcceptanceTests;
+    using NEventStore.Persistence.AcceptanceTests.BDD;
+    using Xunit;
 
     public class CreatingPollingClientTests
     {
@@ -198,11 +198,11 @@
 			return Task.WhenAll(
 				_observeCommits1.Start(),
 	            Task.Factory.StartNew(async () =>
-				{
-					for (int i = 0; i < 15; i++)
-					{
+            {
+                for (int i = 0; i < 15; i++)
+                {
 						await StoreEvents.Advanced.CommitSingle();
-					}
+                }
 				}));
         }
 
@@ -290,6 +290,40 @@
         public void should_observe_commit()
         {
             _commitObserved.Wait(PollingInterval * 2).Should().BeTrue();
+        }
+    }
+    
+    
+    public class when_polling_from_bucket1 : using_polling_client
+    {
+        private IObserveCommits _observeCommits;
+        private Task<ICommit> _commitObserved;
+        protected override async Task Context()
+        {
+            await base.Context();
+            await StoreEvents.Advanced.CommitMany(4, null, "bucket_2");
+            await StoreEvents.Advanced.CommitMany(4, null, "bucket_1");
+            _observeCommits = PollingClient.ObserveFromBucket("bucket_1");
+            _commitObserved = _observeCommits.FirstAsync().ToTask();
+        }
+
+        protected override Task Because()
+        {
+            //_observeCommits.PollNow();
+            return Task.FromResult(true);
+        }
+
+        protected override void Cleanup()
+        {
+            _observeCommits.Dispose();
+        }
+
+        [Fact]
+        public void should_observe_commit_from_bucket1()
+        {
+            throw new NotImplementedException();
+            //_commitObserved.Wait(PollingInterval * 2).ShouldBe(true);
+            //_commitObserved.Result.BucketId.ShouldBe("bucket_1");
         }
     }
 }

@@ -146,6 +146,7 @@ namespace NEventStore
                 pipelineHooks.Add(_hook2);
 
                 A.CallTo(() => persistence.GetFromTo(Bucket.Default, _start, _end)).Returns(new List<ICommit> {_commit});
+                return Task.FromResult(true);
             }
 
             protected override async Task Because()
@@ -176,11 +177,12 @@ namespace NEventStore
             protected override Task Context()
             {
                 _attempt = new CommitAttempt(streamId, 1, Guid.NewGuid(), 1, DateTime.Now, null, new List<EventMessage> {new EventMessage()});
+                return Task.FromResult(true);
             }
 
-            protected override Task Because()
+            protected override async Task Because()
             {
-                Decorator.Commit(_attempt);
+                await Decorator.Commit(_attempt);
             }
 
             [Fact]
@@ -209,11 +211,12 @@ namespace NEventStore
                 pipelineHooks.Add(_hook2);
 
                 A.CallTo(() => persistence.GetFrom(null)).Returns(new List<ICommit> {_commit});
+                return Task.FromResult(true);
             }
 
-            protected override Task Because()
+            protected override async Task Because()
             {
-                Decorator.GetFrom(null).ToList();
+                (await Decorator.GetFrom(null)).ToList();
             }
 
             [Fact]
@@ -238,11 +241,12 @@ namespace NEventStore
             {
                 _hook = A.Fake<IPipelineHook>();
                 pipelineHooks.Add(_hook);
+                return Task.FromResult(true);
             }
 
-            protected override Task Because()
+            protected override async Task Because()
             {
-                Decorator.Purge();
+                await Decorator.Purge();
             }
 
             [Fact]
@@ -261,11 +265,12 @@ namespace NEventStore
             {
                 _hook = A.Fake<IPipelineHook>();
                 pipelineHooks.Add(_hook);
+                return Task.FromResult(true);
             }
 
-            protected override Task Because()
+            protected override async Task Because()
             {
-                Decorator.Purge(_bucketId);
+                await Decorator.Purge(_bucketId);
             }
 
             [Fact]
@@ -285,11 +290,12 @@ namespace NEventStore
             {
                 _hook = A.Fake<IPipelineHook>();
                 pipelineHooks.Add(_hook);
+                return Task.FromResult(true);
             }
 
-            protected override Task Because()
+            protected override async Task Because()
             {
-                Decorator.DeleteStream(_bucketId, _streamId);
+                await Decorator.DeleteStream(_bucketId, _streamId);
             }
 
             [Fact]

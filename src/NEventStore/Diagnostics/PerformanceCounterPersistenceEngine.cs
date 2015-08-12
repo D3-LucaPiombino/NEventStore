@@ -1,10 +1,10 @@
 namespace NEventStore.Diagnostics
 {
-	using System;
-	using System.Collections.Generic;
-	using System.Diagnostics;
+    using System;
+    using System.Collections.Generic;
+    using System.Diagnostics;
 	using System.Threading.Tasks;
-	using NEventStore.Persistence;
+    using NEventStore.Persistence;
 
     public class PerformanceCounterPersistenceEngine : IPersistStreams
     {
@@ -60,7 +60,10 @@ namespace NEventStore.Diagnostics
         {
             return _persistence.GetFrom(checkpointToken);
         }
-
+        public Task<IEnumerable<ICommit>> GetFrom(string bucketId, string checkpointToken)
+        {
+            return _persistence.GetFrom(bucketId, checkpointToken);
+        }
         public async Task<bool> AddSnapshot(ISnapshot snapshot)
         {
             bool result = await _persistence.AddSnapshot(snapshot);

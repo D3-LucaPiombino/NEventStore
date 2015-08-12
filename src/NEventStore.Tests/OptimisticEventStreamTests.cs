@@ -110,7 +110,8 @@ namespace NEventStore
 
         protected override Task Because()
         {
-            Stream = new OptimisticEventStream(BucketId, StreamId, Persistence, 0, int.MaxValue);
+            Stream = new OptimisticEventStream(BucketId, StreamId, Persistence);
+            return Task.FromResult(true);
         }
 
         [Fact]
@@ -125,6 +126,7 @@ namespace NEventStore
         protected override Task Because()
         {
             Stream.Add(null);
+            return Task.FromResult(true);
         }
 
         [Fact]
@@ -139,6 +141,7 @@ namespace NEventStore
         protected override Task Because()
         {
             Stream.Add(new EventMessage {Body = null});
+            return Task.FromResult(true);
         }
 
         [Fact]
@@ -153,6 +156,7 @@ namespace NEventStore
         protected override Task Because()
         {
             Stream.Add(new EventMessage {Body = "populated"});
+            return Task.FromResult(true);
         }
 
         [Fact]
@@ -168,6 +172,7 @@ namespace NEventStore
         {
             Stream.Add(new EventMessage {Body = "populated"});
             Stream.Add(new EventMessage {Body = "also populated"});
+            return Task.FromResult(true);
         }
 
         [Fact]
@@ -184,6 +189,7 @@ namespace NEventStore
         protected override Task Because()
         {
             Stream.Add(new EventMessage {Body = MyEvent});
+            return Task.FromResult(true);
         }
 
         [Fact]
@@ -204,11 +210,13 @@ namespace NEventStore
         protected override Task Context()
         {
             Stream.Add(new EventMessage {Body = string.Empty});
+            return Task.FromResult(true);
         }
 
         protected override Task Because()
         {
             Stream.ClearChanges();
+            return Task.FromResult(true);
         }
 
         [Fact]
@@ -220,9 +228,9 @@ namespace NEventStore
 
     public class when_committing_an_empty_changeset : on_the_event_stream
     {
-        protected override Task Because()
+        protected override async Task Because()
         {
-            Stream.CommitChanges(Guid.NewGuid());
+            await Stream.CommitChanges(Guid.NewGuid());
         }
 
         [Fact]
@@ -270,11 +278,12 @@ namespace NEventStore
             {
                 Stream.UncommittedHeaders[item.Key] = item.Value;
             }
+            return Task.FromResult(true);
         }
 
-        protected override Task Because()
+        protected override async Task Because()
         {
-            Stream.CommitChanges(_commitId);
+            await Stream.CommitChanges(_commitId);
         }
 
         [Fact]
@@ -397,12 +406,13 @@ namespace NEventStore
 
             A.CallTo(() => Persistence.GetFrom(BucketId, StreamId, 0, int.MaxValue)).Returns(_committed);
 
-            Stream = new OptimisticEventStream(BucketId, StreamId, Persistence, 0, int.MaxValue);
+            Stream = new OptimisticEventStream(BucketId, StreamId, Persistence);
+            return Task.FromResult(true);
         }
 
-        protected override Task Because()
+        protected override async Task Because()
         {
-            _thrown = Catch.Exception(() => Stream.CommitChanges(_dupliateCommitId));
+            _thrown = await Catch.Exception(async () => await Stream.CommitChanges(_dupliateCommitId));
         }
 
         [Fact]
@@ -430,13 +440,14 @@ namespace NEventStore
             A.CallTo(() => Persistence.GetFrom(BucketId, StreamId, StreamRevision, int.MaxValue)).Returns(_committed);
             A.CallTo(() => Persistence.GetFrom(BucketId, StreamId, StreamRevision + 1, int.MaxValue)).Returns(_discoveredOnCommit);
 
-            Stream = new OptimisticEventStream(BucketId, StreamId, Persistence, StreamRevision, int.MaxValue);
+            Stream = new OptimisticEventStream(BucketId, StreamId, Persistence);
             Stream.Add(_uncommitted);
+            return Task.FromResult(true);
         }
 
-        protected override Task Because()
+        protected override async Task Because()
         {
-            _thrown = Catch.Exception(() => Stream.CommitChanges(Guid.NewGuid()));
+            _thrown = await Catch.Exception(async () => await Stream.CommitChanges(Guid.NewGuid()));
         }
 
         [Fact]
@@ -477,11 +488,12 @@ namespace NEventStore
         protected override Task Context()
         {
             Stream.Dispose();
+            return Task.FromResult(true);
         }
 
-        protected override Task Because()
+        protected override async Task Because()
         {
-            _thrown = Catch.Exception(() => Stream.CommitChanges(Guid.NewGuid()));
+            _thrown = await Catch.Exception(async () => await Stream.CommitChanges(Guid.NewGuid()));
         }
 
         [Fact]

@@ -228,7 +228,7 @@ namespace NEventStore
         private Snapshot _snapshot;
         private IEventStream _stream;
 
-        protected override async Task Context()
+        protected override Task Context()
         {
             _snapshot = new Snapshot(streamId, HeadStreamRevision, "snapshot");
             _committed = new EnumerableCounter<ICommit>(
@@ -236,6 +236,7 @@ namespace NEventStore
 
             A.CallTo(() =>  Persistence.GetFrom(Bucket.Default, streamId, HeadStreamRevision, int.MaxValue))
                 .Returns(_committed);
+            return Task.FromResult(true);
         }
 
         protected override async Task Because()

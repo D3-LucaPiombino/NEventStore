@@ -18,9 +18,8 @@
             protected override Task Context()
             {
                 _wireup = Wireup.Init()
-                    .UsingSqlPersistence("fakeConnectionString")
-                        .WithDialect(new Persistence.Sql.SqlDialects.MsSqlDialect());
-				return Task.FromResult(true);
+                    .UsingInMemoryPersistence();
+                return Task.FromResult(true);
             }
 
             protected override Task Because()

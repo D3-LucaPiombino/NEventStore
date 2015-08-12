@@ -196,6 +196,15 @@ namespace NEventStore {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Getting all commits from bucket &apos;{0}&apos; since checkpoint &apos;{1}&apos;..
+        /// </summary>
+        internal static string GettingAllCommitsFromBucketAndCheckpoint {
+            get {
+                return ResourceManager.GetString("GettingAllCommitsFromBucketAndCheckpoint", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Getting all commits since checkpoint &apos;{0}&apos;..
         /// </summary>
         internal static string GettingAllCommitsFromCheckpoint {

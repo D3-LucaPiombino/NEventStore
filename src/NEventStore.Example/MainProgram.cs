@@ -1,10 +1,10 @@
 namespace NEventStore.Example
 {
-	using System;
+    using System;
 	using System.Threading.Tasks;
-	using System.Transactions;
-	using NEventStore;
-	using NEventStore.Persistence.Sql.SqlDialects;
+    using System.Transactions;
+    using NEventStore;
+    //using NEventStore.Dispatcher;
 
     internal static class MainProgram
 	{
@@ -41,9 +41,6 @@ namespace NEventStore.Example
 			 return Wireup.Init()
 				.LogToOutputWindow()
 				.UsingInMemoryPersistence()
-				.UsingSqlPersistence("NEventStore") // Connection string is in app.config
-					.WithDialect(new MsSqlDialect())
-					.EnlistInAmbientTransaction() // two-phase commit
 					.InitializeStorageEngine()
 					.TrackPerformanceInstance("example")
 					.UsingJsonSerialization()
@@ -52,7 +49,7 @@ namespace NEventStore.Example
 				.HookIntoPipelineUsing(new[] { new AuthorizationPipelineHook() })
 				.Build();
 		}
-		
+
 		private static async Task OpenOrCreateStream()
 		{
 			// we can call CreateStream(StreamId) if we know there isn't going to be any data.
