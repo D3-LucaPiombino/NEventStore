@@ -309,7 +309,7 @@
 
         protected override Task Because()
         {
-            //_observeCommits.PollNow();
+            _observeCommits.PollNow();
             return Task.FromResult(true);
         }
 
@@ -321,9 +321,9 @@
         [Fact]
         public void should_observe_commit_from_bucket1()
         {
-            throw new NotImplementedException();
-            //_commitObserved.Wait(PollingInterval * 2).ShouldBe(true);
-            //_commitObserved.Result.BucketId.ShouldBe("bucket_1");
+            //throw new NotImplementedException();
+            _commitObserved.Wait(PollingInterval * 2).Should().Be(true);
+            _commitObserved.Result.BucketId.Should().Be("bucket_1");
         }
     }
 }

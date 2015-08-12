@@ -108,10 +108,10 @@ namespace NEventStore
 			return Task.FromResult(true);
         }
 
-        protected override Task Because()
+        protected override async Task Because()
         {
             Stream = new OptimisticEventStream(BucketId, StreamId, Persistence);
-            return Task.FromResult(true);
+            await Stream.Initialize(0, int.MaxValue);
         }
 
         [Fact]
@@ -399,7 +399,7 @@ namespace NEventStore
         private Guid _dupliateCommitId;
         private Exception _thrown;
 
-        protected override Task Context()
+        protected override async Task Context()
         {
             _committed = new[] {BuildCommitStub(1, 1, 1)};
             _dupliateCommitId = _committed[0].CommitId;
@@ -407,7 +407,7 @@ namespace NEventStore
             A.CallTo(() => Persistence.GetFrom(BucketId, StreamId, 0, int.MaxValue)).Returns(_committed);
 
             Stream = new OptimisticEventStream(BucketId, StreamId, Persistence);
-            return Task.FromResult(true);
+            await Stream.Initialize(0, int.MaxValue);
         }
 
         protected override async Task Because()
@@ -431,7 +431,7 @@ namespace NEventStore
         private CommitAttempt _constructed;
         private Exception _thrown;
 
-        protected override Task Context()
+        protected override async Task Context()
         {
             _committed = new[] {BuildCommitStub(1, 1, 1)};
             _discoveredOnCommit = new[] {BuildCommitStub(3, 2, 2)};
@@ -442,7 +442,7 @@ namespace NEventStore
 
             Stream = new OptimisticEventStream(BucketId, StreamId, Persistence);
             Stream.Add(_uncommitted);
-            return Task.FromResult(true);
+            await Stream.CommitChanges(Guid.NewGuid());
         }
 
         protected override async Task Because()
