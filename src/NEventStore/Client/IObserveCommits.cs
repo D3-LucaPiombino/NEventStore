@@ -1,12 +1,15 @@
 ﻿namespace NEventStore.Client
 {
     using System;
+    using System.Threading;
     using System.Threading.Tasks;
 
     public interface IObserveCommits : IObservable<ICommit>, IDisposable
     {
         Task Start();
 
-        void PollNow();
+        Task PollNow();
+
+        Task Wait(CancellationToken cancellationToken);
     }
 }

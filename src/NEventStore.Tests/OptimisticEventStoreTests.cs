@@ -4,16 +4,17 @@
 
 namespace NEventStore
 {
-	using System;
-	using System.Collections.Generic;
-	using System.Linq;
-	using System.Threading.Tasks;
-	using FakeItEasy;
-	using FluentAssertions;
-	using NEventStore.Persistence;
-	using NEventStore.Persistence.AcceptanceTests;
-	using NEventStore.Persistence.AcceptanceTests.BDD;
-	using Xunit;
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Threading.Tasks;
+    using FakeItEasy;
+    using FluentAssertions;
+    using NEventStore.Persistence;
+    using NEventStore.Persistence.AcceptanceTests;
+    using NEventStore.Persistence.AcceptanceTests.BDD;
+    using Xunit;
+    using ALinq;
 
     public class when_creating_a_new_stream : using_persistence
     {
@@ -73,7 +74,7 @@ namespace NEventStore
 
         protected override Task Context()
         {
-            A.CallTo(() => Persistence.GetFrom(Bucket.Default, streamId, 0, 0)).Returns(new ICommit[0]);
+            A.CallTo(() => Persistence.GetFrom(Bucket.Default, streamId, 0, 0)).Returns(new ICommit[0].AsAsyncEnumerable());
 			return Task.FromResult(true);
         }
 
@@ -133,7 +134,7 @@ namespace NEventStore
         protected override Task Context()
         {
             A.CallTo(() => Persistence.GetFrom(Bucket.Default, streamId, MinRevision, int.MaxValue))
-                .Returns(Enumerable.Empty<ICommit>());
+                .Returns(AsyncEnumerable.Empty<ICommit>());
 			return Task.FromResult(true);
         }
 
@@ -161,7 +162,7 @@ namespace NEventStore
             _committed = BuildCommitStub(MinRevision, 1);
 
             A.CallTo(() => Persistence.GetFrom(Bucket.Default, streamId, MinRevision, MaxRevision))
-                .Returns(new[] { _committed });
+                .Returns(new[] { _committed }.ToAsync());
 
             var hook = A.Fake<IPipelineHook>();
             A.CallTo(() => hook.Select(_committed)).Returns(_committed);
@@ -204,7 +205,7 @@ namespace NEventStore
             _snapshot = new Snapshot(streamId, 42, "snapshot");
             _committed = new[] { BuildCommitStub(42, 0)};
 
-            A.CallTo(() => Persistence.GetFrom(Bucket.Default, streamId, 42, MaxRevision)).Returns(_committed);
+            A.CallTo(() => Persistence.GetFrom(Bucket.Default, streamId, 42, MaxRevision)).Returns(_committed.ToAsync());
 			return Task.FromResult(true);
         }
 
@@ -235,7 +236,7 @@ namespace NEventStore
                 new[] { BuildCommitStub(HeadStreamRevision, HeadCommitSequence)});
 
             A.CallTo(() =>  Persistence.GetFrom(Bucket.Default, streamId, HeadStreamRevision, int.MaxValue))
-                .Returns(_committed);
+                .Returns(_committed.ToAsync());
             return Task.FromResult(true);
         }
 
@@ -286,7 +287,7 @@ namespace NEventStore
         protected override Task Context()
         {
             A.CallTo(() => Persistence.GetFrom(Bucket.Default, streamId, 0, int.MaxValue))
-                .Returns(Enumerable.Empty<ICommit>());
+                .Returns(AsyncEnumerable.Empty<ICommit>());
 			return Task.FromResult(true);
         }
 
@@ -294,7 +295,7 @@ namespace NEventStore
         {
             // ReSharper disable once ReturnValueOfPureMethodIsNotUsed
             // This forces the enumeration of the commits.
-            (await Store.GetFrom(streamId, 0, int.MaxValue)).ToList();
+            await (Store.GetFrom(streamId, 0, int.MaxValue)).ToList();
         }
 
         [Fact]
@@ -312,7 +313,7 @@ namespace NEventStore
         {
             _committed = BuildCommitStub(1, 1);
 
-            A.CallTo(() => Persistence.GetFrom(Bucket.Default, streamId, 0, int.MaxValue)).Returns(new[] { _committed });
+            A.CallTo(() => Persistence.GetFrom(Bucket.Default, streamId, 0, int.MaxValue)).Returns(new[] { _committed }.ToAsync());
 			return Task.FromResult(true);
         }
 
@@ -355,7 +356,7 @@ namespace NEventStore
             _committed = BuildCommitStub(1, 1);
 
             A.CallTo(() => Persistence.GetFrom(Bucket.Default, streamId, snapshot.StreamRevision, int.MaxValue))
-                .Returns(new[] { _committed });
+                .Returns(new[] { _committed }.ToAsync());
 			return Task.FromResult(true);
         }
 

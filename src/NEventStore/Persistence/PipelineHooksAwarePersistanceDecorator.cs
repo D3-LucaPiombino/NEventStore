@@ -3,8 +3,9 @@ namespace NEventStore.Persistence
     using System;
     using System.Collections.Generic;
     using System.Linq;
-	using System.Threading.Tasks;
+    using System.Threading.Tasks;
     using NEventStore.Logging;
+    using ALinq;
 
     public class PipelineHooksAwarePersistanceDecorator : IPersistStreams
     {
@@ -31,9 +32,9 @@ namespace NEventStore.Persistence
             _original.Dispose();
         }
 
-		public async Task<IEnumerable<ICommit>> GetFrom(string bucketId, string streamId, int minRevision, int maxRevision)
+		public IAsyncEnumerable<ICommit> GetFrom(string bucketId, string streamId, int minRevision, int maxRevision)
         {
-			return await ExecuteHooks(await _original.GetFrom(bucketId, streamId, minRevision, maxRevision));
+			return ExecuteHooks(_original.GetFrom(bucketId, streamId, minRevision, maxRevision));
         }
 
 		public Task<ICommit> Commit(CommitAttempt attempt)
@@ -51,7 +52,7 @@ namespace NEventStore.Persistence
             return _original.AddSnapshot(snapshot);
         }
 
-		public Task<IEnumerable<IStreamHead>> GetStreamsToSnapshot(string bucketId, int maxThreshold)
+		public IAsyncEnumerable<IStreamHead> GetStreamsToSnapshot(string bucketId, int maxThreshold)
         {
             return _original.GetStreamsToSnapshot(bucketId, maxThreshold);
         }
@@ -61,29 +62,28 @@ namespace NEventStore.Persistence
 			return _original.Initialize();
         }
 
-		public async Task<IEnumerable<ICommit>> GetFrom(string bucketId, DateTime start)
+		public IAsyncEnumerable<ICommit> GetFrom(string bucketId, DateTime start)
         {
-			return await ExecuteHooks(await _original.GetFrom(bucketId, start));
+			return ExecuteHooks(_original.GetFrom(bucketId, start));
         }
 
-		public async Task<IEnumerable<ICommit>> GetFrom(string checkpointToken)
+		public IAsyncEnumerable<ICommit> GetFrom(string checkpointToken)
         {
-			return await ExecuteHooks(await _original.GetFrom(checkpointToken));
+			return ExecuteHooks(_original.GetFrom(checkpointToken));
         }
 
-        public async Task<IEnumerable<ICommit>> GetFrom(string bucketId, string checkpointToken)
+        public IAsyncEnumerable<ICommit> GetFrom(string bucketId, string checkpointToken)
         {
-            var commits = await _original.GetFrom(bucketId, checkpointToken);
-            return await ExecuteHooks(commits);
+            return ExecuteHooks(_original.GetFrom(bucketId, checkpointToken));
         }
         public Task<ICheckpoint> GetCheckpoint(string checkpointToken)
         {
             return _original.GetCheckpoint(checkpointToken);
         }
 
-		public async Task<IEnumerable<ICommit>> GetFromTo(string bucketId, DateTime start, DateTime end)
+		public IAsyncEnumerable<ICommit> GetFromTo(string bucketId, DateTime start, DateTime end)
         {
-			return await ExecuteHooks(await _original.GetFromTo(bucketId, start, end));
+			return ExecuteHooks(_original.GetFromTo(bucketId, start, end));
         }
 
 		public async Task Purge()
@@ -126,32 +126,40 @@ namespace NEventStore.Persistence
 			}
         }
 
-		private async Task<IEnumerable<ICommit>> ExecuteHooks(IEnumerable<ICommit> commits)
+		private IAsyncEnumerable<ICommit> ExecuteHooks(IAsyncEnumerable<ICommit> commits)
         {
-			List<ICommit> results = new List<ICommit>();
-            foreach (var commit in commits)
+            return AsyncEnumerable.Create<ICommit>(async producer =>
             {
-                ICommit filtered = commit;
-				foreach (var hook in _pipelineHooks)
-				{
-					filtered = await hook.Select(filtered);
-					if (filtered == null)
+                //List<ICommit> results = new List<ICommit>();
+                await commits.ForEach(async context =>
                 {
-                    Logger.Info(Resources.PipelineHookSkippedCommit, hook.GetType(), commit.CommitId);
-                    break;
-                }
-				}
+                    var commit = context.Item;
+                    var filtered = commit;
+                    foreach (var hook in _pipelineHooks)
+                    {
+                        filtered = await hook.Select(filtered);
+                        if (filtered == null)
+                        {
+                            Logger.Info(Resources.PipelineHookSkippedCommit, hook.GetType(), commit.CommitId);
+                            break;
+                        }
+                    }
 
-                if (filtered == null)
-                {
-                    Logger.Info(Resources.PipelineHookFilteredCommit);
-                }
-                else
-                {
-					results.Add(filtered);
-                }
-            }
-			return results;
+                    if (filtered == null)
+                    {
+                        Logger.Info(Resources.PipelineHookFilteredCommit);
+                    }
+                    else
+                    {
+                        await producer.Yield(filtered);
+                    }
+                });
+                //return results;
+            });
+                
+
+            
+			
         }
     }
 }

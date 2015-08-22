@@ -22,7 +22,7 @@ namespace NEventStore.PollingClientExample
                     checkpointToken = commit.CheckpointToken;
                 }))
                 {
-                    observeCommits.Start();
+                    observeCommits.Start().Wait();
 
                     Console.WriteLine(Resources.PressAnyKey);
                     Console.ReadKey();

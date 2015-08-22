@@ -4,14 +4,15 @@
 
 namespace NEventStore
 {
-	using System;
-	using System.Collections.Generic;
-	using System.Linq;
-	using System.Threading.Tasks;
-	using FakeItEasy;
-	using NEventStore.Persistence;
-	using NEventStore.Persistence.AcceptanceTests.BDD;
-	using Xunit;
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Threading.Tasks;
+    using FakeItEasy;
+    using NEventStore.Persistence;
+    using NEventStore.Persistence.AcceptanceTests.BDD;
+    using Xunit;
+    using ALinq;
 
     public class PipelineHooksAwarePersistenceDecoratorTests
     {
@@ -50,7 +51,7 @@ namespace NEventStore
                 A.CallTo(() => _hook2.Select(_commit)).Returns(_commit);
                 pipelineHooks.Add(_hook2);
 
-                A.CallTo(() => persistence.GetFrom(Bucket.Default, _date)).Returns(new List<ICommit> {_commit});
+                A.CallTo(() => persistence.GetFrom(Bucket.Default, _date)).Returns(new List<ICommit> {_commit}.AsAsyncEnumerable());
 				return Task.FromResult(true);
             }
 
@@ -58,8 +59,8 @@ namespace NEventStore
             {
                 // ReSharper disable once ReturnValueOfPureMethodIsNotUsed
                 // Forces enumeration of commits.
-                var commits = await Decorator.GetFrom(_date);
-				var items = commits.ToList();
+                var commits = Decorator.GetFrom(_date);
+				var items = await commits.ToList();
             }
 
             [Fact]
@@ -97,7 +98,7 @@ namespace NEventStore
                 pipelineHooks.Add(_hook2);
 
                 A.CallTo(() => persistence.GetFrom(Bucket.Default, _commit.StreamId, 0, int.MaxValue))
-                    .Returns(new List<ICommit> { _commit });
+                    .Returns(new List<ICommit> { _commit }.ToAsync());
 				return Task.FromResult(true);
             }
 
@@ -105,8 +106,8 @@ namespace NEventStore
             {
                 // ReSharper disable once ReturnValueOfPureMethodIsNotUsed
                 // Forces enumeration of commits.
-                var commit = await Decorator.GetFrom(Bucket.Default, _commit.StreamId, 0, int.MaxValue);
-				var commits = commit.ToList();
+                var commit = Decorator.GetFrom(Bucket.Default, _commit.StreamId, 0, int.MaxValue);
+				var commits = await commit.ToList();
             }
 
             [Fact]
@@ -145,7 +146,7 @@ namespace NEventStore
                 A.CallTo(() => _hook2.Select(_commit)).Returns(_commit);
                 pipelineHooks.Add(_hook2);
 
-                A.CallTo(() => persistence.GetFromTo(Bucket.Default, _start, _end)).Returns(new List<ICommit> {_commit});
+                A.CallTo(() => persistence.GetFromTo(Bucket.Default, _start, _end)).Returns(new List<ICommit> {_commit}.ToAsync());
                 return Task.FromResult(true);
             }
 
@@ -153,7 +154,7 @@ namespace NEventStore
             {
                 // ReSharper disable once ReturnValueOfPureMethodIsNotUsed
                 // Forces enumeration of commits
-                (await Decorator.GetFromTo(_start, _end)).ToList();
+                await (Decorator.GetFromTo(_start, _end)).ToList();
             }
 
             [Fact]
@@ -210,13 +211,13 @@ namespace NEventStore
                 A.CallTo(() => _hook2.Select(_commit)).Returns(_commit);
                 pipelineHooks.Add(_hook2);
 
-                A.CallTo(() => persistence.GetFrom(null)).Returns(new List<ICommit> {_commit});
+                A.CallTo(() => persistence.GetFrom(null)).Returns(new List<ICommit> {_commit}.ToAsync());
                 return Task.FromResult(true);
             }
 
             protected override async Task Because()
             {
-                (await Decorator.GetFrom(null)).ToList();
+                await (Decorator.GetFrom(null)).ToList();
             }
 
             [Fact]

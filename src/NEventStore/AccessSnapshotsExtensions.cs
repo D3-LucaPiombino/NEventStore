@@ -1,9 +1,10 @@
 namespace NEventStore
 {
-	using System;
-	using System.Collections.Generic;
-	using System.Threading.Tasks;
-	using NEventStore.Persistence;
+    using System;
+    using System.Collections.Generic;
+    using System.Threading.Tasks;
+    using NEventStore.Persistence;
+    using ALinq;
 
     public static class AccessSnapshotsExtensions
     {
@@ -62,7 +63,7 @@ namespace NEventStore
         /// <returns>The streams for which the head and snapshot revisions differ by at least the threshold specified.</returns>
         /// <exception cref="StorageException" />
         /// <exception cref="StorageUnavailableException" />
-        public static Task<IEnumerable<IStreamHead>> GetStreamsToSnapshot(this IAccessSnapshots accessSnapshots, int maxThreshold)
+        public static IAsyncEnumerable<IStreamHead> GetStreamsToSnapshot(this IAccessSnapshots accessSnapshots, int maxThreshold)
         {
             if (accessSnapshots == null)
             {

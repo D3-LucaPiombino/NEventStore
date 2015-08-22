@@ -3,8 +3,9 @@ namespace NEventStore.Diagnostics
     using System;
     using System.Collections.Generic;
     using System.Diagnostics;
-	using System.Threading.Tasks;
+    using System.Threading.Tasks;
     using NEventStore.Persistence;
+    using ALinq;
 
     public class PerformanceCounterPersistenceEngine : IPersistStreams
     {
@@ -41,26 +42,26 @@ namespace NEventStore.Diagnostics
             return _persistence.GetCheckpoint(checkpointToken);
         }
 
-        public Task<IEnumerable<ICommit>> GetFromTo(string bucketId, DateTime start, DateTime end)
+        public IAsyncEnumerable<ICommit> GetFromTo(string bucketId, DateTime start, DateTime end)
         {
             return _persistence.GetFromTo(bucketId, start, end);
         }
 
-		public Task<IEnumerable<ICommit>> GetFrom(string bucketId, string streamId, int minRevision, int maxRevision)
+		public IAsyncEnumerable<ICommit> GetFrom(string bucketId, string streamId, int minRevision, int maxRevision)
         {
             return _persistence.GetFrom(bucketId, streamId, minRevision, maxRevision);
         }
 
-		public Task<IEnumerable<ICommit>> GetFrom(string bucketId, DateTime start)
+		public IAsyncEnumerable<ICommit> GetFrom(string bucketId, DateTime start)
         {
             return _persistence.GetFrom(bucketId, start);
         }
 
-		public Task<IEnumerable<ICommit>> GetFrom(string checkpointToken)
+		public IAsyncEnumerable<ICommit> GetFrom(string checkpointToken)
         {
             return _persistence.GetFrom(checkpointToken);
         }
-        public Task<IEnumerable<ICommit>> GetFrom(string bucketId, string checkpointToken)
+        public IAsyncEnumerable<ICommit> GetFrom(string bucketId, string checkpointToken)
         {
             return _persistence.GetFrom(bucketId, checkpointToken);
         }
@@ -80,7 +81,7 @@ namespace NEventStore.Diagnostics
             return _persistence.GetSnapshot(bucketId, streamId, maxRevision);
         }
 
-        public virtual Task<IEnumerable<IStreamHead>> GetStreamsToSnapshot(string bucketId, int maxThreshold)
+        public virtual IAsyncEnumerable<IStreamHead> GetStreamsToSnapshot(string bucketId, int maxThreshold)
         {
             return _persistence.GetStreamsToSnapshot(bucketId, maxThreshold);
         }

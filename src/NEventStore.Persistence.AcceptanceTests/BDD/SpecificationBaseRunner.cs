@@ -1,12 +1,15 @@
 ﻿namespace NEventStore.Persistence.AcceptanceTests.BDD
 {
-	using System;
-	using System.Collections.Generic;
-	using System.Reflection;
-	using Xunit;
-	using Xunit.Sdk;
+    using System;
+    using System.Collections.Generic;
+    using System.Reflection;
+    using System.Runtime.ExceptionServices;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using Xunit;
+    using Xunit.Sdk;
 
-	internal class SpecificationBaseRunner : ITestClassCommand
+    internal class SpecificationBaseRunner : ITestClassCommand
 	{
 		private readonly List<object> _fixtures = new List<object>();
 		private SpecificationBase _objectUnderTest;
@@ -42,7 +45,8 @@
 			try
 			{
 				SetupFixtures();
-				ObjectUnderTest.OnStart();
+                ObjectUnderTest.OnStart().Wait();
+                
 				return null;
 			}
 			catch (Exception ex)
@@ -55,18 +59,18 @@
 		{
 			try
 			{
-				ObjectUnderTest.OnFinish();
+                ObjectUnderTest.OnFinish();
 
-				foreach (var fixtureData in _fixtures)
-				{
-					var disposable = fixtureData as IDisposable;
-					if (disposable != null)
-					{
-						disposable.Dispose();
-					}
-				}
+                foreach (var fixtureData in _fixtures)
+                {
+                    var disposable = fixtureData as IDisposable;
+                    if (disposable != null)
+                    {
+                        disposable.Dispose();
+                    }
+                }
 
-				return null;
+                return null;
 			}
 			catch (Exception ex)
 			{
@@ -142,17 +146,19 @@
 
 		private class SpecTestCommand : TestCommand
 		{
+
 			public SpecTestCommand(IMethodInfo testMethod, string displayName)
 				: base(testMethod, displayName, 0)
-			{ }
+			{
+            }
 
 			public override MethodResult Execute(object testClass)
 			{
 				try
 				{
-					testMethod.Invoke(testClass, null);
-				}
-				catch (ParameterCountMismatchException)
+                    testMethod.Invoke(testClass, null);
+                }
+                catch (ParameterCountMismatchException)
 				{
 					throw new InvalidOperationException("Observation " + TypeName + "." + MethodName + " cannot have parameters");
 				}
@@ -160,5 +166,6 @@
 				return new PassedResult(testMethod, DisplayName);
 			}
 		}
-	}
+        
+    }
 }

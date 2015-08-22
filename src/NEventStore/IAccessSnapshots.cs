@@ -1,8 +1,9 @@
 namespace NEventStore
 {
-	using System.Collections.Generic;
-	using System.Threading.Tasks;
-	using NEventStore.Persistence;
+    using System.Collections.Generic;
+    using System.Threading.Tasks;
+    using NEventStore.Persistence;
+    using ALinq;
 
     /// <summary>
     ///     Indicates the ability to get or retrieve a snapshot for a given stream.
@@ -40,6 +41,6 @@ namespace NEventStore
         /// <returns>The streams for which the head and snapshot revisions differ by at least the threshold specified.</returns>
         /// <exception cref="StorageException" />
         /// <exception cref="StorageUnavailableException" />
-        Task<IEnumerable<IStreamHead>> GetStreamsToSnapshot(string bucketId, int maxThreshold);
+        IAsyncEnumerable<IStreamHead> GetStreamsToSnapshot(string bucketId, int maxThreshold);
     }
 }

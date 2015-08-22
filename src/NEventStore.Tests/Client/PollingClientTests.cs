@@ -76,10 +76,10 @@
 			return Task.FromResult(true);
         }
 
-        protected override Task Because()
+        protected override async Task Because()
         {
-            _observeCommits.Start();
-			return Task.FromResult(true);
+            // We intentionally do not await here!
+            await _observeCommits.Start();
         }
 
         protected override void Cleanup()
@@ -88,9 +88,10 @@
         }
 
         [Fact]
-        public void should_observe_commit()
+        public async Task should_observe_commit()
         {
-            _commitObserved.Wait(PollingInterval * 2).Should().BeTrue();
+            var task = await Task.WhenAny(_commitObserved, Task.Delay(PollingInterval * 2));
+            Assert.Equal(task, _commitObserved);
         }
     }
 
@@ -108,10 +109,10 @@
 			return Task.FromResult(true);
         }
 
-        protected override Task Because()
+        protected override async Task Because()
         {
-            _observeCommits.Start();
-            return StoreEvents.Advanced.CommitSingle();
+            await _observeCommits.Start();
+            await StoreEvents.Advanced.CommitSingle();
         }
 
         protected override void Cleanup()
@@ -120,9 +121,10 @@
         }
 
         [Fact]
-        public void should_observe_two_commits()
+        public async Task should_observe_two_commits()
         {
-            _twoCommitsObserved.Wait(PollingInterval * 2).Should().BeTrue();
+            var task = await Task.WhenAny(_twoCommitsObserved, Task.Delay(PollingInterval * 2));
+            Assert.Equal(task, _twoCommitsObserved);
         }
     }
 
@@ -144,19 +146,16 @@
             _observeCommits2Complete = _observeCommits1.Take(10).ToTask();
         }
 
-        protected override Task Because()
+        protected override async Task Because()
         {
-			var tasks = new List<Task>();
-            tasks.Add(_observeCommits1.Start());
-            tasks.Add(_observeCommits2.Start());
-            tasks.Add(Task.Factory.StartNew(async () =>
+            await _observeCommits1.Start();
+            await _observeCommits2.Start();
+
+            for (int i = 0; i < 15; i++)
             {
-                for (int i = 0; i < 15; i++)
-                {
-                    await StoreEvents.Advanced.CommitSingle();
-                }
-            }));
-			return Task.WhenAll(tasks.ToArray());
+                await StoreEvents.Advanced.CommitSingle();
+            }
+            
         }
 
         protected override void Cleanup()
@@ -166,15 +165,17 @@
         }
 
         [Fact]
-        public void should_observe_commits_on_first_observer()
+        public async Task should_observe_commits_on_first_observer()
         {
-            _observeCommits1Complete.Wait(PollingInterval * 10).Should().BeTrue();
+            var task = await Task.WhenAny(_observeCommits1Complete, Task.Delay(PollingInterval * 10));
+            Assert.Equal(task, _observeCommits1Complete);
         }
 
         [Fact]
-        public void should_observe_commits_on_second_observer()
+        public async Task should_observe_commits_on_second_observer()
         {
-            _observeCommits2Complete.Wait(PollingInterval * 10).Should().BeTrue();
+            var task = await Task.WhenAny(_observeCommits2Complete, Task.Delay(PollingInterval * 10));
+            Assert.Equal(task, _observeCommits2Complete);
         }
     }
 
@@ -193,17 +194,14 @@
             _observeCommits2Complete = _observeCommits1.Take(10).ToTask();
         }
 
-        protected override Task Because()
+        protected override async Task Because()
         {
-			return Task.WhenAll(
-				_observeCommits1.Start(),
-	            Task.Factory.StartNew(async () =>
+            await _observeCommits1.Start();
+
+            for (int i = 0; i < 15; i++)
             {
-                for (int i = 0; i < 15; i++)
-                {
-						await StoreEvents.Advanced.CommitSingle();
-                }
-				}));
+                await StoreEvents.Advanced.CommitSingle();
+            }
         }
 
         protected override void Cleanup()
@@ -212,15 +210,17 @@
         }
 
         [Fact]
-        public void should_observe_commits_on_first_observer()
+        public async Task should_observe_commits_on_first_observer()
         {
-            _observeCommits1Complete.Wait(PollingInterval * 10).Should().BeTrue();
+            var task = await Task.WhenAny(_observeCommits1Complete, Task.Delay(PollingInterval * 10));
+            Assert.Equal(task, _observeCommits1Complete);
         }
 
         [Fact]
-        public void should_observe_commits_on_second_observer()
+        public async Task should_observe_commits_on_second_observer()
         {
-            _observeCommits2Complete.Wait(PollingInterval * 10).Should().BeTrue();
+            var task = await Task.WhenAny(_observeCommits2Complete, Task.Delay(PollingInterval * 10));
+            Assert.Equal(task, _observeCommits2Complete);
         }
     }
 
@@ -235,8 +235,12 @@
             await StoreEvents.Advanced.CommitSingle();
             _observeCommits = PollingClient.ObserveFrom();
             _commitObserved = _observeCommits.FirstAsync().ToTask();
+
             await _observeCommits.Start();
-            _commitObserved.Wait(PollingInterval * 2);
+
+            var task = await Task.WhenAny(_commitObserved, Task.Delay(PollingInterval * 2));
+            task.Should().Be(_commitObserved);
+
             _observeCommits.Dispose();
 
             await StoreEvents.Advanced.CommitSingle();
@@ -246,8 +250,10 @@
 
         protected override async Task Because()
         {
-            await _observeCommits.Start();
+            // NOTE: We do not await intentionally here!
             _commitObserved = _observeCommits.FirstAsync().ToTask();
+
+            await _observeCommits.Start();
         }
 
         protected override void Cleanup()
@@ -256,9 +262,10 @@
         }
 
         [Fact]
-        public void should_observe_commit()
+        public async Task should_observe_commit()
         {
-            _commitObserved.Wait(PollingInterval * 2).Should().BeTrue();
+            var task = await Task.WhenAny(_commitObserved, Task.Delay(PollingInterval * 2));
+            Assert.Equal(task, _commitObserved);
         }
     }
 
@@ -275,10 +282,9 @@
             _commitObserved = _observeCommits.FirstAsync().ToTask();
         }
 
-        protected override Task Because()
+        protected override async Task Because()
         {
-            _observeCommits.PollNow();
-			return Task.FromResult(true);
+            await _observeCommits.PollNow();
         }
 
         protected override void Cleanup()
@@ -287,9 +293,10 @@
         }
 
         [Fact]
-        public void should_observe_commit()
+        public async Task should_observe_commit()
         {
-            _commitObserved.Wait(PollingInterval * 2).Should().BeTrue();
+            var task = await Task.WhenAny(_commitObserved, Task.Delay(PollingInterval * 2));
+            Assert.Equal(task, _commitObserved);
         }
     }
     
@@ -307,10 +314,9 @@
             _commitObserved = _observeCommits.FirstAsync().ToTask();
         }
 
-        protected override Task Because()
+        protected override async Task Because()
         {
-            _observeCommits.PollNow();
-            return Task.FromResult(true);
+            await _observeCommits.PollNow();
         }
 
         protected override void Cleanup()
@@ -321,8 +327,8 @@
         [Fact]
         public async Task should_observe_commit_from_bucket1()
         {
-            var result = await Task.WhenAny(_commitObserved, Task.Delay(PollingInterval * 2));
-            result.Should().Be(_commitObserved);
+            var task = await Task.WhenAny(_commitObserved, Task.Delay(PollingInterval * 2));
+            Assert.Equal(task, _commitObserved);
             _commitObserved.Result.BucketId.Should().Be("bucket_1");
         }
     }

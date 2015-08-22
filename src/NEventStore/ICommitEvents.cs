@@ -1,8 +1,10 @@
 namespace NEventStore
 {
-	using System.Collections.Generic;
-	using System.Threading.Tasks;
-	using NEventStore.Persistence;
+    using System.Collections.Generic;
+    using System.Threading.Tasks;
+    using NEventStore.Persistence;
+    using ALinq;
+    using System;
 
     /// <summary>
     ///     Indicates the ability to commit events and access events to and from a given stream.
@@ -23,7 +25,7 @@ namespace NEventStore
         /// <returns>A series of committed events from the stream specified sorted in ascending order.</returns>
         /// <exception cref="StorageException" />
         /// <exception cref="StorageUnavailableException" />
-        Task<IEnumerable<ICommit>> GetFrom(string bucketId, string streamId, int minRevision, int maxRevision);
+        IAsyncEnumerable<ICommit> GetFrom(string bucketId, string streamId, int minRevision, int maxRevision);
 
         /// <summary>
         ///     Writes the to-be-commited events provided to the underlying persistence mechanism.
@@ -34,4 +36,39 @@ namespace NEventStore
         /// <exception cref="StorageUnavailableException" />
         Task<ICommit> Commit(CommitAttempt attempt);
     }
+
+
+    public static class AsyncEnumerableExtensions
+    {
+        public static Task Yield<T>(this ConcurrentAsyncProducer<T> producer, IAsyncEnumerable<T> other)
+        {
+            return other.ForEach(c => producer.Yield(c.Item));
+        }
+        public static IAsyncEnumerable<TOut> SelectSynch<TIn, TOut>(this IAsyncEnumerable<TIn> enumerable, Func<TIn, TOut> selector)
+        {
+            return AsyncEnumerable.Select(enumerable, item => Task.FromResult(selector(item)));
+        }
+
+        public static IAsyncEnumerable<T> AsAsyncEnumerable<T>(this Task<T[]> source)
+        {
+            return AsAsyncEnumerable(source.ContinueWith(p => (IEnumerable<T>)p.Result));
+        }
+        public static IAsyncEnumerable<T> AsAsyncEnumerable<T>(this Task<IEnumerable<T>> source)
+        {
+            return AsyncEnumerable.Create<T>(async producer =>
+            {
+                var enumerable = await source;
+                foreach (var item in enumerable)
+                {
+                    await producer.Yield(item);
+                }
+            });
+        }
+
+        public static IAsyncEnumerable<T> AsAsyncEnumerable<T>(this IEnumerable<T> source)
+        {
+            return source.ToAsync();
+        }
+    }
+
 }

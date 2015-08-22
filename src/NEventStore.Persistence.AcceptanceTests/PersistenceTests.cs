@@ -7,11 +7,12 @@ namespace NEventStore.Persistence.AcceptanceTests
     using System.Collections.Generic;
     using System.Globalization;
     using System.Linq;
-	using System.Threading.Tasks;
-	using FluentAssertions;
+    using System.Threading.Tasks;
+    using FluentAssertions;
     using NEventStore.Diagnostics;
     using NEventStore.Persistence.AcceptanceTests.BDD;
     using Xunit;
+    using ALinq;
 
     public class when_a_commit_header_has_a_name_that_contains_a_period : PersistenceEngineConcern
     {
@@ -33,7 +34,8 @@ namespace NEventStore.Persistence.AcceptanceTests
 
         protected override async Task Because()
         {
-            _persisted = (await Persistence.GetFrom(_streamId, 0, int.MaxValue)).First();
+            
+            _persisted = await (Persistence.GetFrom(_streamId, 0, int.MaxValue)).First();
         }
 
         [Fact]
@@ -61,7 +63,7 @@ namespace NEventStore.Persistence.AcceptanceTests
 
         protected override async Task Because()
         {
-            _persisted = (await Persistence.GetFrom(_streamId, 0, int.MaxValue)).First();
+            _persisted = await (Persistence.GetFrom(_streamId, 0, int.MaxValue)).First();
         }
 
         [Fact]
@@ -120,7 +122,9 @@ namespace NEventStore.Persistence.AcceptanceTests
         [Fact]
         public async Task should_cause_the_stream_to_be_found_in_the_list_of_streams_to_snapshot()
         {
-            (await Persistence.GetStreamsToSnapshot(1)).FirstOrDefault(x => x.StreamId == _streamId).Should().NotBeNull();
+#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
+            (await Persistence.GetStreamsToSnapshot(1).FirstOrDefault(async x => x.StreamId == _streamId)).Should().NotBeNull();
+#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
         }
     }
 
@@ -144,7 +148,7 @@ namespace NEventStore.Persistence.AcceptanceTests
 
         protected override async Task Because()
         {
-            _committed = (await Persistence.GetFrom(_streamId, LoadFromCommitContainingRevision, UpToCommitWithContainingRevision)).ToArray();
+            _committed = await (Persistence.GetFrom(_streamId, LoadFromCommitContainingRevision, UpToCommitWithContainingRevision)).ToArray();
         }
 
         [Fact]
@@ -180,7 +184,7 @@ namespace NEventStore.Persistence.AcceptanceTests
 
         protected override async Task Because()
         {
-            _committed = (await Persistence.GetFrom(_streamId, LoadFromCommitContainingRevision, UpToCommitWithContainingRevision)).ToArray();
+            _committed = await (Persistence.GetFrom(_streamId, LoadFromCommitContainingRevision, UpToCommitWithContainingRevision)).ToArray();
         }
 
         [Fact]
@@ -353,7 +357,7 @@ namespace NEventStore.Persistence.AcceptanceTests
 
         protected override async Task Because()
         {
-            _loaded = (await Persistence.GetFrom(_streamId, 0, int.MaxValue)).ToArray();
+            _loaded = await (Persistence.GetFrom(_streamId, 0, int.MaxValue)).ToArray();
         }
 
         [Fact]
@@ -468,7 +472,9 @@ namespace NEventStore.Persistence.AcceptanceTests
         [Fact]
         public async Task should_no_longer_find_the_stream_in_the_set_of_streams_to_be_snapshot()
         {
-            (await Persistence.GetStreamsToSnapshot(1)).Any(x => x.StreamId == _streamId).Should().BeFalse();
+#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
+            (await Persistence.GetStreamsToSnapshot(1).Any(async x => x.StreamId == _streamId)).Should().BeFalse();
+#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
         }
     }
 
@@ -497,13 +503,17 @@ namespace NEventStore.Persistence.AcceptanceTests
         [Fact]
         public async Task should_find_the_stream_in_the_set_of_streams_to_be_snapshot_when_within_the_threshold()
         {
-            (await Persistence.GetStreamsToSnapshot(WithinThreshold)).FirstOrDefault(x => x.StreamId == _streamId).Should().NotBeNull();
+#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
+            (await Persistence.GetStreamsToSnapshot(WithinThreshold).FirstOrDefault(async x => x.StreamId == _streamId)).Should().NotBeNull();
+#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
         }
 
         [Fact]
         public async Task should_not_find_the_stream_in_the_set_of_streams_to_be_snapshot_when_over_the_threshold()
         {
-            (await Persistence.GetStreamsToSnapshot(OverThreshold)).Any(x => x.StreamId == _streamId).Should().BeFalse();
+#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
+            (await Persistence.GetStreamsToSnapshot(OverThreshold).Any(async x => x.StreamId == _streamId)).Should().BeFalse();
+#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
         }
     }
 
@@ -531,7 +541,7 @@ namespace NEventStore.Persistence.AcceptanceTests
 
         protected override async Task Because()
         {
-            _committed = (await Persistence.GetFrom(_now)).ToArray();
+            _committed = await (Persistence.GetFrom(_now)).ToArray();
         }
 
         [Fact]
@@ -559,7 +569,7 @@ namespace NEventStore.Persistence.AcceptanceTests
 
         protected override async Task Because()
         {
-            _loaded = (await Persistence.GetFrom(_start)).ToArray();
+            _loaded = await (Persistence.GetFrom(_start)).ToArray();
         }
 
         [Fact]
@@ -591,7 +601,7 @@ namespace NEventStore.Persistence.AcceptanceTests
 
         protected override async Task Because()
         {
-            _loaded = (await Persistence.GetFrom(checkPoint.ToString())).Select(c => c.CommitId).ToList();
+            _loaded = await (Persistence.GetFrom(checkPoint.ToString()).SelectSynch(c => c.CommitId)).ToList();
         }
 
         [Fact]
@@ -624,12 +634,14 @@ namespace NEventStore.Persistence.AcceptanceTests
 
         protected override async Task Because()
         {
-            _loaded = (await Persistence.GetFrom("b1", checkPoint.ToString())).Select(c => c.CommitId).ToList();
+            _loaded = await Persistence.GetFrom("b1", checkPoint.ToString()).SelectSynch(c => c.CommitId).ToList();
         }
 
         [Fact]
-        public void should_load_the_same_number_of_commits_which_have_been_persisted_starting_from_the_checkpoint()
+        public async Task should_load_the_same_number_of_commits_which_have_been_persisted_starting_from_the_checkpoint()
         {
+            while(_loaded == null)
+                await Task.Delay(20);
             _loaded.Count.Should().Be(_committedOnBucket1.Count - checkPoint);
         }
 
@@ -653,7 +665,7 @@ namespace NEventStore.Persistence.AcceptanceTests
         protected override async Task Because()
         {
             // ReSharper disable once ReturnValueOfPureMethodIsNotUsed
-            _thrown = await Catch.Exception(async () => (await Persistence.GetFrom(DateTime.MinValue)).FirstOrDefault());
+            _thrown = await Catch.Exception(async () => await Persistence.GetFrom(DateTime.MinValue).FirstOrDefault());
         }
 
         [Fact]
@@ -678,13 +690,13 @@ namespace NEventStore.Persistence.AcceptanceTests
         [Fact]
         public async Task should_not_find_any_commits_stored()
         {
-            (await Persistence.GetFrom(DateTime.MinValue)).Count().Should().Be(0);
+            (await Persistence.GetFrom(DateTime.MinValue).Count()).Should().Be(0);
         }
 
         [Fact]
         public async Task should_not_find_any_streams_to_snapshot()
         {
-            (await Persistence.GetStreamsToSnapshot(0)).Count().Should().Be(0);
+            (await Persistence.GetStreamsToSnapshot(0).Count()).Should().Be(0);
         }
 
         //[Fact]
@@ -760,7 +772,7 @@ namespace NEventStore.Persistence.AcceptanceTests
             _streamId = Guid.NewGuid().ToString();
             DateTime now = SystemTime.UtcNow;
             await Persistence.Commit(_streamId.BuildAttempt(now, _bucketAId));
-            _attemptACommitStamp = (await Persistence.GetFrom(_bucketAId, _streamId, 0, int.MaxValue)).First().CommitStamp;
+            _attemptACommitStamp = (await Persistence.GetFrom(_bucketAId, _streamId, 0, int.MaxValue).First()).CommitStamp;
             _attemptForBucketB = _streamId.BuildAttempt(now.Subtract(TimeSpan.FromDays(1)), _bucketBId);
         }
 
@@ -778,7 +790,7 @@ namespace NEventStore.Persistence.AcceptanceTests
         [Fact]
         public async Task should_persist_to_the_correct_bucket()
         {
-            ICommit[] stream = (await Persistence.GetFrom(_bucketBId, _streamId, 0, int.MaxValue)).ToArray();
+            ICommit[] stream = await (Persistence.GetFrom(_bucketBId, _streamId, 0, int.MaxValue)).ToArray();
             stream.Should().NotBeNull();
             stream.Count().Should().Be(1);
         }
@@ -786,7 +798,7 @@ namespace NEventStore.Persistence.AcceptanceTests
         [Fact]
         public async Task should_not_affect_the_stream_from_the_other_bucket()
         {
-            ICommit[] stream = (await Persistence.GetFrom(_bucketAId, _streamId, 0, int.MaxValue)).ToArray();
+            ICommit[] stream = await ( Persistence.GetFrom(_bucketAId, _streamId, 0, int.MaxValue)).ToArray();
             stream.Should().NotBeNull();
             stream.Count().Should().Be(1);
             stream.First().CommitStamp.Should().Be(_attemptACommitStamp);
@@ -850,7 +862,7 @@ namespace NEventStore.Persistence.AcceptanceTests
 
         protected override async Task Because()
         {
-            _returnedCommits = (await Persistence.GetFrom(_bucketAId, _now)).ToArray();
+            _returnedCommits = await (Persistence.GetFrom(_bucketAId, _now)).ToArray();
         }
 
         [Fact]
@@ -875,7 +887,7 @@ namespace NEventStore.Persistence.AcceptanceTests
 
         protected override async Task Because()
         {
-            _commits = (await Persistence.GetFromStart()).ToArray();
+            _commits = await (Persistence.GetFromStart()).ToArray();
         }
 
         [Fact]
@@ -918,25 +930,25 @@ namespace NEventStore.Persistence.AcceptanceTests
         [Fact]
         public async Task should_purge_all_commits_stored_in_bucket_a()
         {
-            (await Persistence.GetFrom(_bucketAId, DateTime.MinValue)).Count().Should().Be(0);
+            (await Persistence.GetFrom(_bucketAId, DateTime.MinValue).Count()).Should().Be(0);
         }
 
         [Fact]
         public async Task should_purge_all_commits_stored_in_bucket_b()
         {
-            (await Persistence.GetFrom(_bucketBId, DateTime.MinValue)).Count().Should().Be(0);
+            (await Persistence.GetFrom(_bucketBId, DateTime.MinValue).Count()).Should().Be(0);
         }
 
         [Fact]
         public async Task should_purge_all_streams_to_snapshot_in_bucket_a()
         {
-            (await Persistence.GetStreamsToSnapshot(_bucketAId, 0)).Count().Should().Be(0);
+            (await Persistence.GetStreamsToSnapshot(_bucketAId, 0).Count()).Should().Be(0);
         }
 
         [Fact]
         public async Task should_purge_all_streams_to_snapshot_in_bucket_b()
         {
-            (await Persistence.GetStreamsToSnapshot(_bucketBId, 0)).Count().Should().Be(0);
+            (await Persistence.GetStreamsToSnapshot(_bucketBId, 0).Count()).Should().Be(0);
         }
 
         //[Fact]
@@ -964,14 +976,17 @@ namespace NEventStore.Persistence.AcceptanceTests
                     await stream.CommitChanges(Guid.NewGuid());
                 }
             }
-            ICommit[] commits = (await Persistence.GetFrom(DateTime.MinValue)).ToArray();
-            _commits = (await Persistence.GetFrom()).ToArray();
+            ICommit[] commits = await (Persistence.GetFrom(DateTime.MinValue)).ToArray();
+            _commits = await (Persistence.GetFrom()).ToArray();
         }
 
         [Fact]
         public void Should_have_expected_number_of_commits()
         {
-            _commits.Length.Should().Be(_moreThanPageSize);
+            var lenght = _commits.Length;
+            
+            var sh = lenght.Should();
+            sh.Be(_moreThanPageSize);
         }
     }
 
@@ -1122,7 +1137,7 @@ namespace NEventStore.Persistence.AcceptanceTests
                 new List<EventMessage> { new EventMessage { Body = new string('a', bodyLength) } });
             await Persistence.Commit(attempt);
 
-            ICommit commits = (await Persistence.GetFrom()).Single();
+            ICommit commits = await (Persistence.GetFrom()).Single();
             commits.Events.Single().Body.ToString().Length.Should().Be(bodyLength);
         }
     }

@@ -1,13 +1,14 @@
 namespace NEventStore
 {
-	using System;
-	using System.Collections.Generic;
-	using System.Diagnostics.CodeAnalysis;
-	using System.Linq;
-	using System.Threading.Tasks;
-	using NEventStore.Logging;
+    using System;
+    using System.Collections.Generic;
+    using System.Diagnostics.CodeAnalysis;
+    using System.Linq;
+    using System.Threading.Tasks;
+    using NEventStore.Logging;
+    using ALinq;
 
-	[SuppressMessage("Microsoft.Naming", "CA1711:IdentifiersShouldNotHaveIncorrectSuffix",
+    [SuppressMessage("Microsoft.Naming", "CA1711:IdentifiersShouldNotHaveIncorrectSuffix",
 		Justification = "This behaves like a stream--not a .NET 'Stream' object, but a stream nonetheless.")]
 	public sealed class OptimisticEventStream : IEventStream
 	{
@@ -82,8 +83,8 @@ namespace NEventStore
 
 		public async Task Initialize(int minRevision, int maxRevision)
 		{
-			IEnumerable<ICommit> commits = await _persistence.GetFrom(BucketId, StreamId, minRevision, maxRevision);
-			PopulateStream(minRevision, maxRevision, commits);
+			var commits = _persistence.GetFrom(BucketId, StreamId, minRevision, maxRevision);
+			await PopulateStream(minRevision, maxRevision, commits);
 
 			if (minRevision > 0 && _committed.Count == 0)
 			{
@@ -98,8 +99,8 @@ namespace NEventStore
 				throw new ArgumentException("Invalid snapshot.");
 			}
 
-			IEnumerable<ICommit> commits = await _persistence.GetFrom(snapshot.BucketId, snapshot.StreamId, snapshot.StreamRevision, maxRevision);
-			PopulateStream(snapshot.StreamRevision + 1, maxRevision, commits);
+			var  commits = _persistence.GetFrom(snapshot.BucketId, snapshot.StreamId, snapshot.StreamRevision, maxRevision);
+			await PopulateStream(snapshot.StreamRevision + 1, maxRevision, commits);
 			StreamRevision = snapshot.StreamRevision + _committed.Count;
 		}
 
@@ -141,8 +142,8 @@ namespace NEventStore
 
 			if (exceptionToThrow != null)
 			{
-				IEnumerable<ICommit> commits = await _persistence.GetFrom(BucketId, StreamId, StreamRevision + 1, int.MaxValue);
-				PopulateStream(StreamRevision + 1, int.MaxValue, commits);
+				var commits = _persistence.GetFrom(BucketId, StreamId, StreamRevision + 1, int.MaxValue);
+				await PopulateStream(StreamRevision + 1, int.MaxValue, commits);
 
 				throw exceptionToThrow;
 			}
@@ -155,23 +156,27 @@ namespace NEventStore
 			_uncommittedHeaders.Clear();
 		}
 
-		private void PopulateStream(int minRevision, int maxRevision, IEnumerable<ICommit> commits)
+		private Task PopulateStream(int minRevision, int maxRevision, IAsyncEnumerable<ICommit> commits)
 		{
-			foreach (var commit in commits ?? Enumerable.Empty<ICommit>())
-			{
-				Logger.Verbose(Resources.AddingCommitsToStream, commit.CommitId, commit.Events.Count, StreamId);
-				_identifiers.Add(commit.CommitId);
+            commits = commits ?? AsyncEnumerable.Empty<ICommit>();
+            return commits.ForEach(context =>
+            {
+                var commit = context.Item;
+                Logger.Verbose(Resources.AddingCommitsToStream, commit.CommitId, commit.Events.Count, StreamId);
+                _identifiers.Add(commit.CommitId);
 
-				CommitSequence = commit.CommitSequence;
-				int currentRevision = commit.StreamRevision - commit.Events.Count + 1;
-				if (currentRevision > maxRevision)
-				{
-					return;
-				}
+                CommitSequence = commit.CommitSequence;
+                int currentRevision = commit.StreamRevision - commit.Events.Count + 1;
+                if (currentRevision > maxRevision)
+                {
+                    context.Break();
+                    return Task.FromResult(false);
+                }
 
-				CopyToCommittedHeaders(commit);
-				CopyToEvents(minRevision, maxRevision, currentRevision, commit);
-			}
+                CopyToCommittedHeaders(commit);
+                CopyToEvents(minRevision, maxRevision, currentRevision, commit);
+                return Task.FromResult(false);
+            });
 		}
 
 		private void CopyToCommittedHeaders(ICommit commit)
@@ -228,7 +233,7 @@ namespace NEventStore
 
 			if (commit != null)
 			{
-				PopulateStream(StreamRevision + 1, attempt.StreamRevision, new[] { commit });
+				await PopulateStream(StreamRevision + 1, attempt.StreamRevision, AsyncEnumerable.Create(commit));
 			}
 
 			ClearChanges();

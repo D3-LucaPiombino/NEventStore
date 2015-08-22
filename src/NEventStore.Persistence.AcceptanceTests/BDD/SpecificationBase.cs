@@ -25,10 +25,10 @@
 			Cleanup();
 		}
 
-		public Task OnStart()
+		public async Task OnStart()
 		{
-			Context();
-			return Because();
+			await Context();
+			await Because();
 		}
 	}
 }

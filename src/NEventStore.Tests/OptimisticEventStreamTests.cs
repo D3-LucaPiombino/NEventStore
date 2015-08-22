@@ -2,16 +2,17 @@
 
 namespace NEventStore
 {
-	using System;
-	using System.Collections.Generic;
-	using System.Linq;
-	using System.Threading.Tasks;
-	using FakeItEasy;
-	using FluentAssertions;
-	using NEventStore.Persistence;
-	using NEventStore.Persistence.AcceptanceTests;
-	using NEventStore.Persistence.AcceptanceTests.BDD;
-	using Xunit;
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Threading.Tasks;
+    using FakeItEasy;
+    using FluentAssertions;
+    using NEventStore.Persistence;
+    using NEventStore.Persistence.AcceptanceTests;
+    using NEventStore.Persistence.AcceptanceTests.BDD;
+    using Xunit;
+    using ALinq;
 
     public class when_building_a_stream : on_the_event_stream
     {
@@ -36,14 +37,15 @@ namespace NEventStore
             _committed[3].Headers["Common"] = string.Empty;
             _committed[0].Headers["Unique"] = string.Empty;
 
-            A.CallTo(() => Persistence.GetFrom(BucketId, StreamId, MinRevision, MaxRevision)).Returns(_committed);
+            A.CallTo(() => Persistence.GetFrom(BucketId, StreamId, MinRevision, MaxRevision)).Returns(_committed.ToAsync());
 			return Task.FromResult(true);
         }
 
         protected override Task Because()
         {
             Stream = new OptimisticEventStream(BucketId, StreamId, Persistence);
-			return Stream.Initialize(MinRevision, MaxRevision);
+            Stream.Initialize(MinRevision, MaxRevision).Wait() ;
+            return Task.FromResult(true);
         }
 
         [Fact]
@@ -104,7 +106,7 @@ namespace NEventStore
                 BuildCommitStub(8, 3, _eventsPerCommit) // 7-8
             };
 
-            A.CallTo(() => Persistence.GetFrom(BucketId, StreamId, 0, int.MaxValue)).Returns(_committed);
+            A.CallTo(() => Persistence.GetFrom(BucketId, StreamId, 0, int.MaxValue)).Returns(_committed.AsAsyncEnumerable());
 			return Task.FromResult(true);
         }
 
@@ -404,7 +406,7 @@ namespace NEventStore
             _committed = new[] {BuildCommitStub(1, 1, 1)};
             _dupliateCommitId = _committed[0].CommitId;
 
-            A.CallTo(() => Persistence.GetFrom(BucketId, StreamId, 0, int.MaxValue)).Returns(_committed);
+            A.CallTo(() => Persistence.GetFrom(BucketId, StreamId, 0, int.MaxValue)).Returns(_committed.AsAsyncEnumerable());
 
             Stream = new OptimisticEventStream(BucketId, StreamId, Persistence);
             await Stream.Initialize(0, int.MaxValue);
@@ -437,12 +439,13 @@ namespace NEventStore
             _discoveredOnCommit = new[] {BuildCommitStub(3, 2, 2)};
 
             A.CallTo(() => Persistence.Commit(A<CommitAttempt>._)).Throws(new ConcurrencyException());
-            A.CallTo(() => Persistence.GetFrom(BucketId, StreamId, StreamRevision, int.MaxValue)).Returns(_committed);
-            A.CallTo(() => Persistence.GetFrom(BucketId, StreamId, StreamRevision + 1, int.MaxValue)).Returns(_discoveredOnCommit);
+            A.CallTo(() => Persistence.GetFrom(BucketId, StreamId, StreamRevision, int.MaxValue)).Returns(_committed.AsAsyncEnumerable());
+            A.CallTo(() => Persistence.GetFrom(BucketId, StreamId, StreamRevision + 1, int.MaxValue)).Returns(_discoveredOnCommit.AsAsyncEnumerable());
 
             Stream = new OptimisticEventStream(BucketId, StreamId, Persistence);
+            await Stream.Initialize(StreamRevision, int.MaxValue);
             Stream.Add(_uncommitted);
-            await Stream.CommitChanges(Guid.NewGuid());
+            //await Stream.CommitChanges(Guid.NewGuid());
         }
 
         protected override async Task Because()

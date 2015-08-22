@@ -1,10 +1,11 @@
 namespace NEventStore
 {
-	using System;
-	using System.Collections.Generic;
-	using System.Threading.Tasks;
-	using NEventStore.Logging;
-	using NEventStore.Persistence;
+    using System;
+    using System.Collections.Generic;
+    using System.Threading.Tasks;
+    using NEventStore.Logging;
+    using NEventStore.Persistence;
+    using ALinq;
 
     public class OptimisticEventStore : IStoreEvents, ICommitEvents
     {
@@ -23,7 +24,7 @@ namespace NEventStore
             _persistence = new PipelineHooksAwarePersistanceDecorator(persistence, _pipelineHooks);
         }
 
-        public virtual Task<IEnumerable<ICommit>> GetFrom(string bucketId, string streamId, int minRevision, int maxRevision)
+        public virtual IAsyncEnumerable<ICommit> GetFrom(string bucketId, string streamId, int minRevision, int maxRevision)
         {
             return _persistence.GetFrom(bucketId, streamId, minRevision, maxRevision);
         }

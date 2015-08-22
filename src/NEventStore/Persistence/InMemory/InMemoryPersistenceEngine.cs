@@ -5,8 +5,9 @@ namespace NEventStore.Persistence.InMemory
     using System.Collections.Generic;
     using System.Linq;
     using System.Threading;
-	using System.Threading.Tasks;
+    using System.Threading.Tasks;
     using NEventStore.Logging;
+    using ALinq;
 
     public class InMemoryPersistenceEngine : IPersistStreams
     {
@@ -35,37 +36,41 @@ namespace NEventStore.Persistence.InMemory
 			return Task.FromResult(true);
         }
 
-		public Task<IEnumerable<ICommit>> GetFrom(string bucketId, string streamId, int minRevision, int maxRevision)
+		public IAsyncEnumerable<ICommit> GetFrom(string bucketId, string streamId, int minRevision, int maxRevision)
         {
             ThrowWhenDisposed();
             Logger.Debug(Resources.GettingAllCommitsFromRevision, streamId, minRevision, maxRevision);
-			return Task.FromResult<IEnumerable<ICommit>>(this[bucketId].GetFrom(streamId, minRevision, maxRevision));
+			return this[bucketId].GetFrom(streamId, minRevision, maxRevision).AsAsyncEnumerable();
         }
 
-		public Task<IEnumerable<ICommit>> GetFrom(string bucketId, DateTime start)
+		public IAsyncEnumerable<ICommit> GetFrom(string bucketId, DateTime start)
         {
             ThrowWhenDisposed();
             Logger.Debug(Resources.GettingAllCommitsFromTime, bucketId, start);
-			return Task.FromResult<IEnumerable<ICommit>>(this[bucketId].GetFrom(start));
+			return this[bucketId].GetFrom(start).AsAsyncEnumerable();
         }
-        public async Task<IEnumerable<ICommit>> GetFrom(string bucketId, string checkpointToken)
+        public IAsyncEnumerable<ICommit> GetFrom(string bucketId, string checkpointToken)
         {
             ThrowWhenDisposed();
             Logger.Debug(Resources.GettingAllCommitsFromBucketAndCheckpoint, bucketId, checkpointToken);
-            var checkPoint = await GetCheckpoint(checkpointToken);
-            return this[bucketId].GetFrom(checkPoint);
+            return AsyncEnumerable.Create<ICommit>(async producer =>
+            {
+                var checkPoint = await GetCheckpoint(checkpointToken);
+                await producer.Yield(this[bucketId].GetFrom(checkPoint).AsAsyncEnumerable());
+            });
         }
 
-        public Task<IEnumerable<ICommit>> GetFrom(string checkpointToken)
+        public IAsyncEnumerable<ICommit> GetFrom(string checkpointToken)
         {
             Logger.Debug(Resources.GettingAllCommitsFromCheckpoint, checkpointToken);
             ICheckpoint checkpoint = LongCheckpoint.Parse(checkpointToken);
-			return Task.FromResult<IEnumerable<ICommit>>(_buckets
+            return _buckets
                 .Values
                 .SelectMany(b => b.GetCommits())
                 .Where(c => c.Checkpoint.CompareTo(checkpoint) > 0)
                 .OrderBy(c => c.Checkpoint)
-				.ToArray());
+                .ToArray()
+                .AsAsyncEnumerable();
         }
 
 		public Task<ICheckpoint> GetCheckpoint(string checkpointToken = null)
@@ -73,11 +78,11 @@ namespace NEventStore.Persistence.InMemory
 			return Task.FromResult<ICheckpoint>(LongCheckpoint.Parse(checkpointToken));
         }
 
-		public Task<IEnumerable<ICommit>> GetFromTo(string bucketId, DateTime start, DateTime end)
+		public IAsyncEnumerable<ICommit> GetFromTo(string bucketId, DateTime start, DateTime end)
         {
             ThrowWhenDisposed();
             Logger.Debug(Resources.GettingAllCommitsFromToTime, start, end);
-			return Task.FromResult<IEnumerable<ICommit>>(this[bucketId].GetFromTo(start, end));
+			return this[bucketId].GetFromTo(start, end).AsAsyncEnumerable();
         }
 
 		public Task<ICommit> Commit(CommitAttempt attempt)
@@ -87,11 +92,11 @@ namespace NEventStore.Persistence.InMemory
 			return Task.FromResult<ICommit>(this[attempt.BucketId].Commit(attempt, new LongCheckpoint(Interlocked.Increment(ref _checkpoint))));
         }
 
-		public Task<IEnumerable<IStreamHead>> GetStreamsToSnapshot(string bucketId, int maxThreshold)
+		public IAsyncEnumerable<IStreamHead> GetStreamsToSnapshot(string bucketId, int maxThreshold)
         {
             ThrowWhenDisposed();
             Logger.Debug(Resources.GettingStreamsToSnapshot, bucketId, maxThreshold);
-			return Task.FromResult<IEnumerable<IStreamHead>>(this[bucketId].GetStreamsToSnapshot(maxThreshold));
+            return this[bucketId].GetStreamsToSnapshot(maxThreshold).AsAsyncEnumerable();
         }
 
 		public Task<ISnapshot> GetSnapshot(string bucketId, string streamId, int maxRevision)

@@ -1,13 +1,13 @@
 ﻿namespace NEventStore.Client
 {
     using System;
-    using System.Collections.Generic;
     using System.Reactive;
     using System.Reactive.Subjects;
     using System.Threading;
     using System.Threading.Tasks;
-    using NEventStore.Logging;
-    using NEventStore.Persistence;
+    using Logging;
+    using Persistence;
+    using ALinq;
 
     /// <summary>
     /// Represents a client that poll the storage for latest commits.
@@ -57,7 +57,10 @@
             private readonly string _bucketId;
             private readonly Subject<ICommit> _subject = new Subject<ICommit>();
             private readonly CancellationTokenSource _stopRequested = new CancellationTokenSource();
+
+            private TaskCompletionSource<Unit> _startTask;
             private TaskCompletionSource<Unit> _runningTaskCompletionSource;
+            
             private int _isPolling = 0;
 
             public PollingObserveCommits(IPersistStreams persistStreams, int interval, string bucketId, string checkpointToken = null)
@@ -85,30 +88,42 @@
 
             public Task Start()
             {
-                if (_runningTaskCompletionSource != null)
+                if (_runningTaskCompletionSource != null && _runningTaskCompletionSource.Task.IsCompleted)
+                    throw new ObjectDisposedException("PollingObserveCommits");
+
+                var startTask = Interlocked.CompareExchange(ref _startTask, new TaskCompletionSource<Unit>(), null);
+                if(startTask != null)
                 {
-                    return _runningTaskCompletionSource.Task;
+                    return startTask.Task;
                 }
-
                 _runningTaskCompletionSource = new TaskCompletionSource<Unit>();
-				Task.Run(() => PollLoop());
-                return _runningTaskCompletionSource.Task;
+				Task.Run(() => PollLoop(_stopRequested.Token));
+                return _startTask.Task;
             }
 
-			public async void PollNow()
+			public async Task PollNow()
             {
-				await DoPoll();
+                await DoPoll();
             }
 
-			private async Task PollLoop()
+			private async Task PollLoop(CancellationToken cancellationToken)
             {
-				while (!_stopRequested.IsCancellationRequested)
+                try
                 {
-					await Task.Delay(_interval);
-					await DoPoll();
-				}
+                    await DoPoll();
+                    _startTask.TrySetResult(new Unit());
 
-                    Dispose();
+                    while (!cancellationToken.IsCancellationRequested)
+                    {
+                        await Task.WhenAny(Task.Delay(_interval, cancellationToken));
+                        await DoPoll();
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+
+                }
+                Dispose();
             }
 
 			private async Task DoPoll()
@@ -118,19 +133,24 @@
                     try
                     {
                         var commits = _bucketId == null ? 
-                            await _persistStreams.GetFrom(_checkpointToken) :
-                            await _persistStreams.GetFrom(_bucketId, _checkpointToken);
+                            _persistStreams.GetFrom(_checkpointToken) :
+                            _persistStreams.GetFrom(_bucketId, _checkpointToken);
 
-                        foreach (var commit in commits)
+                        await commits.ForEach(context =>
                         {
+                            var commit = context.Item;
                             if (_stopRequested.IsCancellationRequested)
                             {
                                 _subject.OnCompleted();
-                                return;
+                                context.Break();
                             }
-                            _subject.OnNext(commit);
-                            _checkpointToken = commit.CheckpointToken;
-                        }
+                            else
+                            {
+                                _subject.OnNext(commit);
+                                _checkpointToken = commit.CheckpointToken;
+                            }
+                            return Task.FromResult(false);
+                        });
                     }
                     catch (Exception ex)
                     {
@@ -139,6 +159,12 @@
                     }
                     Interlocked.Exchange(ref _isPolling, 0);
                 }
+            }
+
+
+            public Task Wait(CancellationToken cancellationToken)
+            {
+                return _runningTaskCompletionSource.Task;
             }
         }
     }

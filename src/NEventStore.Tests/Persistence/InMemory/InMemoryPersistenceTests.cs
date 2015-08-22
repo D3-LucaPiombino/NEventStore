@@ -1,12 +1,13 @@
 ﻿namespace NEventStore.Persistence.InMemory
 {
-	using System;
-	using System.Collections.Generic;
-	using System.Linq;
-	using System.Threading.Tasks;
-	using FluentAssertions;
-	using NEventStore.Persistence.AcceptanceTests.BDD;
-	using Xunit;
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Threading.Tasks;
+    using FluentAssertions;
+    using NEventStore.Persistence.AcceptanceTests.BDD;
+    using Xunit;
+    using ALinq;
 
     public class when_getting_from_to_then_should_not_get_later_commits : SpecificationBase
     {
@@ -27,7 +28,7 @@
 
         protected override async Task Because()
         {
-            _commits = (await _engine.GetFromTo(_startDate, _endDate)).ToArray();
+            _commits = await (_engine.GetFromTo(_startDate, _endDate)).ToArray();
         }
 
         [Fact]
