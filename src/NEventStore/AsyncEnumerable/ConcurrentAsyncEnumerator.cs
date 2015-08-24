@@ -75,39 +75,32 @@ namespace ALinq
 
         private async Task Yield(T value)
         {
-            // Wait for the consumer to call MoveNext() the first time.
-            // Not that after the first time, this will be always signalled.
-            // This is only necessary to synchronize the enumerator when the 
-            // producer is started.
             if (!_disposed)
             {
-                await _moveNextSignal.Wait().ConfigureAwait(false);
                 _current = value;
                 _producerResult.Set(true);
-                // Now, wait for the consumer to call the next MoveNext().
+
+                // Now, wait for the consumer to call MoveNext().
                 // This will guarantee that _current instance is valid until
                 // the consumer(s) are done.
                 await _moveNextSignal.Wait().ConfigureAwait(false);
-                _moveNextSignal.Set();
             }
-
         }
 
-        private async Task EndOfStream()
+        private void EndOfStream()
         {
             if (!_disposed)
             {
-                // Wait for the consumer to pull (call MoveNext()).
-                await _moveNextSignal.Wait().ConfigureAwait(false);
                 _producerResult.Set();
-                // There no need here to weird stuff with _moveNextSignal :)
             }
         }
 
         public void Dispose()
         {
             _disposed = true;
+            // Wake up the producer if it was stuck in Yield.
             _moveNextSignal.Set();
+            // Signal the EndOfStream
             _producerResult.Set();
         }
 
@@ -119,11 +112,16 @@ namespace ALinq
 
                 try
                 {
+                    // Wait for the consumer to call MoveNext() the first time.
+                    // Note that after the first time, this will be always signalled.
+                    // This is only necessary to synchronize the enumerator when the 
+                    // producer is started.
+                    await _moveNextSignal.Wait().ConfigureAwait(false);
                     await producerFunc(producer);
                 }
                 finally
                 {
-                    await enumerator.EndOfStream();
+                    enumerator.EndOfStream();
                 }
             };
         }
