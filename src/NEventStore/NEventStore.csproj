@@ -50,6 +50,66 @@
       <Link>Properties\VersionAssemblyInfo.cs</Link>
     </Compile>
     <Compile Include="AccessSnapshotsExtensions.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.Aggregate.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.All.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.Any.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.Average.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.Cast.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.Concat.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.Contains.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.Count.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.Create.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.DefaultIfEmpty.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.Distinct.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.ElementAt.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.Empty.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.Except.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.First.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.ForEach.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.GroupBy.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.GroupJoin.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.Intersect.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.Join.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.Last.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.Max.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.Min.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.OfType.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.OrderBy.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.Range.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.Repeat.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.Reverse.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.Select.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.SelectMany.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.SequenceEqual.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.Single.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.Skip.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.Sum.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.Take.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.ToArray.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.ToAsync.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.ToDictionary.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.ToList.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.Union.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.Utilities.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.Where.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerable.Zip.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumerableConverter.cs" />
+    <Compile Include="AsyncEnumerable\AsyncEnumeratorConverter.cs" />
+    <Compile Include="AsyncEnumerable\AsyncLoopContext.cs" />
+    <Compile Include="AsyncEnumerable\AsyncSortContext.cs" />
+    <Compile Include="AsyncEnumerable\AsyncSortSequenceContext.cs" />
+    <Compile Include="AsyncEnumerable\ConcurrentAsyncEnumerable.cs" />
+    <Compile Include="AsyncEnumerable\ConcurrentAsyncEnumerator.cs" />
+    <Compile Include="AsyncEnumerable\ConcurrentAsyncGrouping.cs" />
+    <Compile Include="AsyncEnumerable\ConcurrentAsyncProducer.cs" />
+    <Compile Include="AsyncEnumerable\ConversionObserver.cs" />
+    <Compile Include="AsyncEnumerable\IAsyncEnumerable.cs" />
+    <Compile Include="AsyncEnumerable\IAsyncEnumerator.cs" />
+    <Compile Include="AsyncEnumerable\IAsyncGrouping.cs" />
+    <Compile Include="AsyncEnumerable\IOrderedAsyncEnumerable.cs" />
+    <Compile Include="AsyncEnumerable\OrderedAsyncEnumerable.cs" />
+    <Compile Include="AsyncEnumerable\OrderedAsyncSequence.cs" />
+    <Compile Include="AsyncEnumerable\QuickSort.cs" />
     <Compile Include="Bucket.cs" />
     <Compile Include="Client\Messages.Designer.cs">
       <AutoGen>True</AutoGen>
@@ -154,10 +214,6 @@
     </Content>
   </ItemGroup>
   <ItemGroup>
-    <Reference Include="ALinq, Version=0.1.5212.31037, Culture=neutral, PublicKeyToken=7e22a2e7cfe603b8, processorArchitecture=MSIL">
-      <HintPath>$(SolutionDir)\packages\ALinq.0.1.5212.31037\lib\net45\ALinq.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
     <Reference Include="Newtonsoft.Json, Version=7.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>$(SolutionDir)\packages\Newtonsoft.Json.7.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
       <Private>True</Private>
