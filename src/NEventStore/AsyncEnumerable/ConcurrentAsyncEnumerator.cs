@@ -24,7 +24,7 @@ namespace ALinq
     internal sealed class ConcurrentAsyncEnumerator<T> : IAsyncEnumerator<T>
     {
         private readonly Func<ConcurrentAsyncEnumerator<T>, Task> _producer;
-        private readonly Signal<bool> _producerGate = new Signal<bool>();
+        private readonly Signal<bool> _moveNextSignal = new Signal<bool>();
         private readonly Signal<bool> _producerResult = new Signal<bool>();
         private Task _producerTask;
         private T _current;
@@ -65,23 +65,33 @@ namespace ALinq
 
         private async Task<bool> SignalProducer()
         {
-            _producerGate.Set();
+            _moveNextSignal.Set();
             return await _producerResult.Wait().ConfigureAwait(false);
         }
 
         private async Task Yield(T value)
         {
-            // Wait for the consumer to pull (call MoveNext()).
-            await _producerGate.Wait().ConfigureAwait(false);
+            // Wait for the consumer to call MoveNext() the first time.
+            // Not that after the first time, this will be always signalled.
+            // This is only necessary to synchronize the enumerator when the 
+            // producer is started.
+            await _moveNextSignal.Wait().ConfigureAwait(false);
             _current = value;
             _producerResult.Set(true);
+
+            // Now, wait for the consumer to call the next MoveNext().
+            // This will guarantee that _current instance is valid until
+            // the consumer(s) are done.
+            await _moveNextSignal.Wait().ConfigureAwait(false);
+            _moveNextSignal.Set();
         }
 
         private async Task EndOfStream()
         {
             // Wait for the consumer to pull (call MoveNext()).
-            await _producerGate.Wait().ConfigureAwait(false);
+            await _moveNextSignal.Wait().ConfigureAwait(false);
             _producerResult.Set();
+            // There no need here to weird stuff with _moveNextSignal :)
         }
 
         internal ConcurrentAsyncEnumerator(Func<ConcurrentAsyncProducer<T>, Task> producerFunc)
