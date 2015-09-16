@@ -524,7 +524,7 @@ namespace NEventStore
             get { return store ?? (store = new OptimisticEventStore(Persistence, PipelineHooks.Select(x => x))); }
         }
 
-        protected override void Cleanup()
+        protected override void CleanupSynch()
         {
             streamId = Guid.NewGuid().ToString();
         }

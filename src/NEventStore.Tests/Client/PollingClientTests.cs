@@ -56,7 +56,7 @@
 			return Task.FromResult(true);
         }
 
-        protected override void Cleanup()
+        protected override void CleanupSynch()
         {
             _storeEvents.Dispose();
         }
@@ -82,7 +82,7 @@
             await _observeCommits.Start();
         }
 
-        protected override void Cleanup()
+        protected override void CleanupSynch()
         {
             _observeCommits.Dispose();
         }
@@ -115,7 +115,7 @@
             await StoreEvents.Advanced.CommitSingle();
         }
 
-        protected override void Cleanup()
+        protected override void CleanupSynch()
         {
             _observeCommits.Dispose();
         }
@@ -158,7 +158,7 @@
             
         }
 
-        protected override void Cleanup()
+        protected override void CleanupSynch()
         {
             _observeCommits1.Dispose();
             _observeCommits2.Dispose();
@@ -204,7 +204,7 @@
             }
         }
 
-        protected override void Cleanup()
+        protected override void CleanupSynch()
         {
             _observeCommits1.Dispose();
         }
@@ -256,7 +256,7 @@
             await _observeCommits.Start();
         }
 
-        protected override void Cleanup()
+        protected override void CleanupSynch()
         {
             _observeCommits.Dispose();
         }
@@ -287,7 +287,7 @@
             await _observeCommits.PollNow();
         }
 
-        protected override void Cleanup()
+        protected override void CleanupSynch()
         {
             _observeCommits.Dispose();
         }
@@ -319,7 +319,7 @@
             await _observeCommits.PollNow();
         }
 
-        protected override void Cleanup()
+        protected override void CleanupSynch()
         {
             _observeCommits.Dispose();
         }

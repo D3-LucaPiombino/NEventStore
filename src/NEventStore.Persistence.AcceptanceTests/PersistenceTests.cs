@@ -1142,7 +1142,7 @@ namespace NEventStore.Persistence.AcceptanceTests
         }
     }
 
-    public class PersistenceEngineConcern : SpecificationBase, IUseFixture<PersistenceEngineFixture>
+    public class PersistenceEngineConcern : SpecificationBase, IClassFixture<PersistenceEngineFixture>
     {
         private PersistenceEngineFixture _fixture;
 

@@ -173,7 +173,7 @@
         }
     }
 
-    public class SerializationConcern : SpecificationBase, IUseFixture<SerializerFixture>
+    public class SerializationConcern : SpecificationBase, IClassFixture<SerializerFixture>
     {
         private SerializerFixture _data;
 

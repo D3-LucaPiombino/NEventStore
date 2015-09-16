@@ -28,7 +28,7 @@
 				return Task.FromResult(true);
             }
 
-            protected override void Cleanup()
+            protected override void CleanupSynch()
             {
                 _eventStore.Dispose();
             }
