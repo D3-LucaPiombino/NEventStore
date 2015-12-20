@@ -7,10 +7,13 @@ namespace NEventStore.Logging
         private static readonly object Sync = new object();
         private readonly ConsoleColor _originalColor = Console.ForegroundColor;
         private readonly Type _typeToLog;
+        private readonly ISystemTimeProvider _systemTypeProvider;
 
-        public ConsoleWindowLogger(Type typeToLog)
+        public ConsoleWindowLogger(Type typeToLog, ISystemTimeProvider systemTypeProvider)
         {
+            _systemTypeProvider = systemTypeProvider ?? new DefaultSystemTimeProvider();
             _typeToLog = typeToLog;
+
         }
 
         public virtual void Verbose(string message, params object[] values)
@@ -48,7 +51,7 @@ namespace NEventStore.Logging
             lock (Sync)
             {
                 Console.ForegroundColor = color;
-                Console.WriteLine(message.FormatMessage(_typeToLog, values));
+                Console.WriteLine(message.FormatMessage(_systemTypeProvider, _typeToLog,  values));
                 Console.ForegroundColor = _originalColor;
             }
         }

@@ -12,8 +12,13 @@ namespace NEventStore
         private static readonly ILog Logger = LogFactory.BuildLogger(typeof (OptimisticEventStore));
         private readonly IPersistStreams _persistence;
         private readonly IEnumerable<IPipelineHook> _pipelineHooks;
+        private readonly ISystemTimeProvider _systemTimeProvider;
 
-        public OptimisticEventStore(IPersistStreams persistence, IEnumerable<IPipelineHook> pipelineHooks)
+        public OptimisticEventStore(
+            IPersistStreams persistence, 
+            IEnumerable<IPipelineHook> pipelineHooks,
+            ISystemTimeProvider systemTimeProvider
+        )
         {
             if (persistence == null)
             {
@@ -22,6 +27,7 @@ namespace NEventStore
 
             _pipelineHooks = pipelineHooks ?? new IPipelineHook[0];
             _persistence = new PipelineHooksAwarePersistanceDecorator(persistence, _pipelineHooks);
+            _systemTimeProvider = systemTimeProvider;
         }
 
         public virtual IAsyncEnumerable<ICommit> GetFrom(string bucketId, string streamId, int minRevision, int maxRevision)
@@ -64,7 +70,7 @@ namespace NEventStore
         public virtual Task<IEventStream> CreateStream(string bucketId, string streamId)
         {
             Logger.Info(Resources.CreatingStream, streamId, bucketId);
-            return Task.FromResult<IEventStream>(new OptimisticEventStream(bucketId, streamId, this));
+            return Task.FromResult<IEventStream>(new OptimisticEventStream(bucketId, streamId, this, _systemTimeProvider));
         }
 
 		public virtual async Task<IEventStream> OpenStream(string bucketId, string streamId, int minRevision, int maxRevision)
@@ -73,7 +79,7 @@ namespace NEventStore
 
             Logger.Debug(Resources.OpeningStreamAtRevision, streamId, bucketId, minRevision, maxRevision);
 
-			var stream = new OptimisticEventStream(bucketId, streamId, this);
+			var stream = new OptimisticEventStream(bucketId, streamId, this, _systemTimeProvider);
 			await stream.Initialize(minRevision, maxRevision);
             return stream;
         }
@@ -89,7 +95,7 @@ namespace NEventStore
             maxRevision = maxRevision <= 0 ? int.MaxValue : maxRevision;
 
 			var stream = new OptimisticEventStream(
-				snapshot.BucketId, snapshot.StreamId, this);
+				snapshot.BucketId, snapshot.StreamId, this, _systemTimeProvider);
 			await stream.Initialize(snapshot, maxRevision);
 			return stream;
         }

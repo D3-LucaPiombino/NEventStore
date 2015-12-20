@@ -28,6 +28,11 @@ namespace NEventStore
             get { return _container ?? _inner.Container; }
         }
 
+        public T ResolveService<T>()
+        {
+            return Container.Resolve<T>();
+        }
+
         public static Wireup Init()
         {
             var container = new NanoContainer();
@@ -35,6 +40,7 @@ namespace NEventStore
             container.Register(TransactionScopeOption.Suppress);
             container.Register<IPersistStreams>(new InMemoryPersistenceEngine());
             container.Register<ISerialize>(new JsonSerializer());
+            container.Register<ISystemTimeProvider>(new DefaultSystemTimeProvider());
             container.Register(BuildEventStore);
 
             return new Wireup(container);
@@ -80,7 +86,11 @@ namespace NEventStore
                 .Where(x => x != null)
                 .ToArray();
 
-            return new OptimisticEventStore(context.Resolve<IPersistStreams>(), hooks);
+            return new OptimisticEventStore(
+                context.Resolve<IPersistStreams>(),
+                hooks,
+                context.Resolve<ISystemTimeProvider>()
+            );
         }
     }
 }

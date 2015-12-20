@@ -8,12 +8,12 @@ namespace NEventStore.Logging
     {
         private const string MessageFormat = "{0:yyyy/MM/dd HH:mm:ss.ff} - {1} - {2} - {3}";
 
-        public static string FormatMessage(this string message, Type typeToLog, params object[] values)
+        public static string FormatMessage(this string message, ISystemTimeProvider systemTypeProvider, Type typeToLog, params object[] values)
         {
             return string.Format(
                 CultureInfo.InvariantCulture,
                 MessageFormat,
-                SystemTime.UtcNow,
+                systemTypeProvider.UtcNow,
                 Thread.CurrentThread.GetName(),
                 typeToLog.FullName,
                 string.Format(CultureInfo.InvariantCulture, message, values));

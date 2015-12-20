@@ -6,14 +6,14 @@ namespace NEventStore
     using System.Collections.Generic;
     using System.Linq;
     using System.Threading.Tasks;
-    using FakeItEasy;
+
     using FluentAssertions;
     using NEventStore.Persistence;
     using NEventStore.Persistence.AcceptanceTests;
     using NEventStore.Persistence.AcceptanceTests.BDD;
     using Xunit;
     using ALinq;
-
+    using NSubstitute;
     public class when_building_a_stream : on_the_event_stream
     {
         private const int MinRevision = 2;
@@ -37,13 +37,14 @@ namespace NEventStore
             _committed[3].Headers["Common"] = string.Empty;
             _committed[0].Headers["Unique"] = string.Empty;
 
-            A.CallTo(() => Persistence.GetFrom(BucketId, StreamId, MinRevision, MaxRevision)).Returns(_committed.ToAsync());
-			return Task.FromResult(true);
+            //A.CallTo(() => Persistence.GetFrom(BucketId, StreamId, MinRevision, MaxRevision)).Returns(_committed.ToAsync());
+            Persistence.GetFrom(BucketId, StreamId, MinRevision, MaxRevision).Returns(_committed.ToAsync());
+            return Task.FromResult(true);
         }
 
         protected override Task Because()
         {
-            Stream = new OptimisticEventStream(BucketId, StreamId, Persistence);
+            Stream = new OptimisticEventStream(BucketId, StreamId, Persistence, SystemTimeProvider);
             Stream.Initialize(MinRevision, MaxRevision).Wait() ;
             return Task.FromResult(true);
         }
@@ -106,13 +107,14 @@ namespace NEventStore
                 BuildCommitStub(8, 3, _eventsPerCommit) // 7-8
             };
 
-            A.CallTo(() => Persistence.GetFrom(BucketId, StreamId, 0, int.MaxValue)).Returns(_committed.AsAsyncEnumerable());
-			return Task.FromResult(true);
+            //A.CallTo(() => Persistence.GetFrom(BucketId, StreamId, 0, int.MaxValue)).Returns(_committed.AsAsyncEnumerable());
+            Persistence.GetFrom(BucketId, StreamId, 0, int.MaxValue).Returns(_committed.AsAsyncEnumerable());
+            return Task.FromResult(true);
         }
 
         protected override async Task Because()
         {
-            Stream = new OptimisticEventStream(BucketId, StreamId, Persistence);
+            Stream = new OptimisticEventStream(BucketId, StreamId, Persistence, SystemTimeProvider);
             await Stream.Initialize(0, int.MaxValue);
         }
 
@@ -238,7 +240,8 @@ namespace NEventStore
         [Fact]
         public void should_not_call_the_underlying_infrastructure()
         {
-            A.CallTo(() => Persistence.Commit(A<CommitAttempt>._)).MustNotHaveHappened();
+            //A.CallTo(() => Persistence.Commit(A<CommitAttempt>._)).MustNotHaveHappened();
+            Persistence.DidNotReceive().Commit(Arg.Any<CommitAttempt>());
         }
 
         [Fact]
@@ -263,18 +266,38 @@ namespace NEventStore
 
         protected override Task Context()
         {
-            A.CallTo(() => Persistence.Commit(A<CommitAttempt>._))
-                .Invokes((CommitAttempt _) => _constructed = _)
-                .ReturnsLazily((CommitAttempt attempt) => new Commit(
-                    attempt.BucketId,
-                    attempt.StreamId,
-                    attempt.StreamRevision,
-                    attempt.CommitId,
-                    attempt.CommitSequence,
-                    attempt.CommitStamp,
-                    new LongCheckpoint(0).Value,
-                    attempt.Headers,
-                    attempt.Events));
+
+            Persistence
+                .Commit(Arg.Any<CommitAttempt>())
+                .Returns(c =>
+                {
+                    var attempt = c.Arg<CommitAttempt>();
+                    _constructed = attempt;
+                    return new Commit(
+                        attempt.BucketId,
+                        attempt.StreamId,
+                        attempt.StreamRevision,
+                        attempt.CommitId,
+                        attempt.CommitSequence,
+                        attempt.CommitStamp,
+                        new LongCheckpoint(0).Value,
+                        attempt.Headers,
+                        attempt.Events
+                    );
+                });
+
+            //A.CallTo(() => Persistence.Commit(A<CommitAttempt>._))
+            //    .Invokes((CommitAttempt _) => _constructed = _)
+            //    .ReturnsLazily((CommitAttempt attempt) => new Commit(
+            //        attempt.BucketId,
+            //        attempt.StreamId,
+            //        attempt.StreamRevision,
+            //        attempt.CommitId,
+            //        attempt.CommitSequence,
+            //        attempt.CommitStamp,
+            //        new LongCheckpoint(0).Value,
+            //        attempt.Headers,
+            //        attempt.Events));
             Stream.Add(_uncommitted);
             foreach (var item in _headers)
             {
@@ -289,9 +312,17 @@ namespace NEventStore
         }
 
         [Fact]
+        public void should_have_committed()
+        {
+            //A.CallTo(() => Persistence.Commit(A<CommitAttempt>._)).MustHaveHappened(Repeated.Exactly.Once);
+            _constructed.Should().NotBeNull();
+        }
+
+        [Fact]
         public void should_provide_a_commit_to_the_underlying_infrastructure()
         {
-            A.CallTo(() => Persistence.Commit(A<CommitAttempt>._)).MustHaveHappened(Repeated.Exactly.Once);
+            //A.CallTo(() => Persistence.Commit(A<CommitAttempt>._)).MustHaveHappened(Repeated.Exactly.Once);
+            Persistence.Received(1).Commit(Arg.Any<CommitAttempt>());
         }
 
         [Fact]
@@ -327,7 +358,7 @@ namespace NEventStore
         [Fact]
         public void should_build_the_commit_with_the_correct_commit_stamp()
         {
-            SystemTime.UtcNow.Should().Be(_constructed.CommitStamp);
+            SystemTimeProvider.UtcNow.Should().Be(_constructed.CommitStamp);
         }
 
         [Fact]
@@ -406,9 +437,10 @@ namespace NEventStore
             _committed = new[] {BuildCommitStub(1, 1, 1)};
             _dupliateCommitId = _committed[0].CommitId;
 
-            A.CallTo(() => Persistence.GetFrom(BucketId, StreamId, 0, int.MaxValue)).Returns(_committed.AsAsyncEnumerable());
+            //A.CallTo(() => Persistence.GetFrom(BucketId, StreamId, 0, int.MaxValue)).Returns(_committed.AsAsyncEnumerable());
+            Persistence.GetFrom(BucketId, StreamId, 0, int.MaxValue).Returns(_committed.AsAsyncEnumerable());
 
-            Stream = new OptimisticEventStream(BucketId, StreamId, Persistence);
+            Stream = new OptimisticEventStream(BucketId, StreamId, Persistence, SystemTimeProvider);
             await Stream.Initialize(0, int.MaxValue);
         }
 
@@ -438,11 +470,18 @@ namespace NEventStore
             _committed = new[] {BuildCommitStub(1, 1, 1)};
             _discoveredOnCommit = new[] {BuildCommitStub(3, 2, 2)};
 
-            A.CallTo(() => Persistence.Commit(A<CommitAttempt>._)).Throws(new ConcurrencyException());
-            A.CallTo(() => Persistence.GetFrom(BucketId, StreamId, StreamRevision, int.MaxValue)).Returns(_committed.AsAsyncEnumerable());
-            A.CallTo(() => Persistence.GetFrom(BucketId, StreamId, StreamRevision + 1, int.MaxValue)).Returns(_discoveredOnCommit.AsAsyncEnumerable());
+            //A.CallTo(() => Persistence.Commit(A<CommitAttempt>._)).Throws(new ConcurrencyException());
+            //A.CallTo(() => Persistence.GetFrom(BucketId, StreamId, StreamRevision, int.MaxValue)).Returns(_committed.AsAsyncEnumerable());
+            //A.CallTo(() => Persistence.GetFrom(BucketId, StreamId, StreamRevision + 1, int.MaxValue)).Returns(_discoveredOnCommit.AsAsyncEnumerable());
 
-            Stream = new OptimisticEventStream(BucketId, StreamId, Persistence);
+            Persistence
+                .When(x => x.Commit(Arg.Any<CommitAttempt>()))
+                .Do(x => { throw new ConcurrencyException(); });
+
+            Persistence.GetFrom(BucketId, StreamId, StreamRevision, int.MaxValue).Returns(_committed.AsAsyncEnumerable());
+            Persistence.GetFrom(BucketId, StreamId, StreamRevision + 1, int.MaxValue).Returns(_discoveredOnCommit.AsAsyncEnumerable());
+
+            Stream = new OptimisticEventStream(BucketId, StreamId, Persistence, SystemTimeProvider);
             await Stream.Initialize(StreamRevision, int.MaxValue);
             Stream.Add(_uncommitted);
             //await Stream.CommitChanges(Guid.NewGuid());
@@ -462,7 +501,8 @@ namespace NEventStore
         [Fact]
         public void should_query_the_underlying_storage_to_discover_the_new_commits()
         {
-            A.CallTo(() => Persistence.GetFrom(BucketId, StreamId, StreamRevision + 1, int.MaxValue)).MustHaveHappened(Repeated.Exactly.Once);
+            // A.CallTo(() => Persistence.GetFrom(BucketId, StreamId, StreamRevision + 1, int.MaxValue)).MustHaveHappened(Repeated.Exactly.Once);
+            Persistence.Received(1).GetFrom(BucketId, StreamId, StreamRevision + 1, int.MaxValue);
         }
 
         [Fact]
@@ -550,13 +590,14 @@ namespace NEventStore
         protected override Task Context()
         {
             // simulates pipeline pre-commit hook returning a false
-            A.CallTo(() => Persistence.Commit(A<CommitAttempt>.Ignored)).Returns((ICommit)null);
-			return Task.FromResult(true);
+            //A.CallTo(() => Persistence.Commit(A<CommitAttempt>.Ignored)).Returns((ICommit)null);
+            Persistence.Commit(Arg.Any<CommitAttempt>()).Returns((ICommit)null);
+            return Task.FromResult(true);
         }
 
         protected override Task Because()
         {
-            Stream = new OptimisticEventStream(BucketId, StreamId, Persistence);
+            Stream = new OptimisticEventStream(BucketId, StreamId, Persistence, SystemTimeProvider);
             Stream.Add(new EventMessage() { Body = "body" });
             return Stream.CommitChanges(Guid.NewGuid());
         }
@@ -577,20 +618,31 @@ namespace NEventStore
         private OptimisticEventStream _stream;
         protected const string BucketId = "bucket";
         protected readonly string StreamId = Guid.NewGuid().ToString();
+        private SystemTimeProviderFake _systemTimeProvider;
 
         protected ICommitEvents Persistence
         {
-            get { return _persistence ?? (_persistence = A.Fake<ICommitEvents>()); }
+            get { return _persistence ?? (_persistence = Substitute.For<ICommitEvents>()); }
         }
 
         protected OptimisticEventStream Stream
         {
-            get { return _stream ?? (_stream = new OptimisticEventStream(BucketId, StreamId, Persistence)); }
+            get { return _stream ?? (_stream = new OptimisticEventStream(BucketId, StreamId, Persistence, SystemTimeProvider)); }
             set { _stream = value; }
         }
 
+        public SystemTimeProviderFake SystemTimeProvider
+        {
+            get
+            {
+                return _systemTimeProvider;
+            }
+        }
+
         public void SetFixture(FakeTimeFixture data)
-        {}
+        {
+            _systemTimeProvider = data.SystemTimeProvider;
+        }
 
         protected ICommit BuildCommitStub(int revision, int sequence, int eventCount)
         {
@@ -600,20 +652,24 @@ namespace NEventStore
                 events.Add(new EventMessage());
             }
 
-            return new Commit(Bucket.Default, StreamId, revision, Guid.NewGuid(), sequence, SystemTime.UtcNow, new LongCheckpoint(0).Value, null, events);
+            return new Commit(Bucket.Default, StreamId, revision, Guid.NewGuid(), sequence, SystemTimeProvider.UtcNow, new LongCheckpoint(0).Value, null, events);
         }
     }
 
-    public class FakeTimeFixture : IDisposable
+    public class FakeTimeFixture 
     {
+        private SystemTimeProviderFake systemTimeProvider = new SystemTimeProviderFake();
         public FakeTimeFixture()
         {
-            SystemTime.Resolver = () => new DateTime(2012, 1, 1, 13, 0, 0);
+            SystemTimeProvider.SetResolver(() => new DateTime(2012, 1, 1, 13, 0, 0));
         }
 
-        public void Dispose()
+        public SystemTimeProviderFake SystemTimeProvider
         {
-            SystemTime.Resolver = null;
+            get
+            {
+                return systemTimeProvider;
+            }
         }
     }
 }

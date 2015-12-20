@@ -7,10 +7,12 @@ namespace NEventStore.Logging
     {
         private static readonly object Sync = new object();
         private readonly Type _typeToLog;
+        private readonly ISystemTimeProvider _systemTypeProvider;
 
-        public OutputWindowLogger(Type typeToLog)
+        public OutputWindowLogger(Type typeToLog, ISystemTimeProvider systemTypeProvider)
         {
             _typeToLog = typeToLog;
+            _systemTypeProvider = systemTypeProvider ?? new DefaultSystemTimeProvider();
         }
 
         public virtual void Verbose(string message, params object[] values)
@@ -47,7 +49,7 @@ namespace NEventStore.Logging
         {
             lock (Sync)
             {
-                System.Diagnostics.Debug.WriteLine(category, message.FormatMessage(_typeToLog, values));
+                System.Diagnostics.Debug.WriteLine(category, message.FormatMessage(_systemTypeProvider, _typeToLog, values));
             }
         }
 
@@ -55,7 +57,7 @@ namespace NEventStore.Logging
         {
             lock (Sync)
             {
-                Trace.WriteLine(category, message.FormatMessage(_typeToLog, values));
+                Trace.WriteLine(category, message.FormatMessage(_systemTypeProvider, _typeToLog, values));
             }
         }
     }

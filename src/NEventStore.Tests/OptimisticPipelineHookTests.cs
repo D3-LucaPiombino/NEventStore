@@ -76,7 +76,7 @@ namespace NEventStore
             }
         }
 
-    public class when_committing_with_a_sequence_less_or_equal_to_the_most_recent_sequence_for_the_stream : using_commit_hooks
+        public class when_committing_with_a_sequence_less_or_equal_to_the_most_recent_sequence_for_the_stream : using_commit_hooks
         {
             private const int HeadStreamRevision = 42;
             private const int HeadCommitSequence = 42;
@@ -106,7 +106,7 @@ namespace NEventStore
             }
         }
 
-    public class when_committing_with_a_revision_less_or_equal_to_than_the_most_recent_revision_read_for_the_stream : using_commit_hooks
+        public class when_committing_with_a_revision_less_or_equal_to_than_the_most_recent_revision_read_for_the_stream : using_commit_hooks
         {
             private const int HeadStreamRevision = 3;
             private const int HeadCommitSequence = 2;
@@ -135,7 +135,7 @@ namespace NEventStore
             }
         }
 
-    public class when_committing_with_a_commit_sequence_less_than_or_equal_to_the_most_recent_commit_for_the_stream : using_commit_hooks
+        public class when_committing_with_a_commit_sequence_less_than_or_equal_to_the_most_recent_commit_for_the_stream : using_commit_hooks
         {
             private const int DuplicateCommitSequence = 1;
             private CommitAttempt _failedAttempt;
@@ -162,7 +162,7 @@ namespace NEventStore
             }
         }
 
-    public class when_committing_with_a_stream_revision_less_than_or_equal_to_the_most_recent_commit_for_the_stream : using_commit_hooks
+        public class when_committing_with_a_stream_revision_less_than_or_equal_to_the_most_recent_commit_for_the_stream : using_commit_hooks
         {
             private const int DuplicateStreamRevision = 2;
 
@@ -248,7 +248,7 @@ namespace NEventStore
 
             private ICommit BuildCommit(string streamId, Guid commitId)
             {
-                return new Commit(Bucket.Default, streamId, 0, commitId, 0, SystemTime.UtcNow, new LongCheckpoint(0).Value, null, null);
+                return new Commit(Bucket.Default, streamId, 0, commitId, 0, DateTime.UtcNow, new LongCheckpoint(0).Value, null, null);
             }
         }
 
@@ -279,7 +279,7 @@ namespace NEventStore
 
             private ICommit BuildCommit(Guid bucketId, Guid streamId, Guid commitId)
             {
-                return new Commit(bucketId.ToString(), streamId.ToString(), 0, commitId, 0, SystemTime.UtcNow,
+                return new Commit(bucketId.ToString(), streamId.ToString(), 0, commitId, 0, DateTime.UtcNow,
                     new LongCheckpoint(0).Value, null, null);
             }
         }
@@ -319,7 +319,7 @@ namespace NEventStore
 
             private ICommit BuildCommit(Guid bucketId, Guid streamId, Guid commitId)
             {
-                return new Commit(bucketId.ToString(), streamId.ToString(), 0, commitId, 0, SystemTime.UtcNow,
+                return new Commit(bucketId.ToString(), streamId.ToString(), 0, commitId, 0, DateTime.UtcNow,
                     new LongCheckpoint(0).Value, null, null);
             }
         }
@@ -361,7 +361,7 @@ namespace NEventStore
 
             private ICommit BuildCommit(Guid bucketId, Guid streamId, Guid commitId)
             {
-                return new Commit(bucketId.ToString(), streamId.ToString(), 0, commitId, 0, SystemTime.UtcNow,
+                return new Commit(bucketId.ToString(), streamId.ToString(), 0, commitId, 0, DateTime.UtcNow,
                     new LongCheckpoint(0).Value, null, null);
             }
         }
@@ -373,25 +373,25 @@ namespace NEventStore
 
             protected CommitAttempt BuildCommitStub(Guid commitId)
             {
-                return new CommitAttempt(_streamId, 1, commitId, 1, SystemTime.UtcNow, null, null);
+                return new CommitAttempt(_streamId, 1, commitId, 1, DateTime.UtcNow, null, null);
             }
 
             protected ICommit BuildCommitStub(int streamRevision, int commitSequence)
             {
                 List<EventMessage> events = new[] {new EventMessage()}.ToList();
-                return new Commit(Bucket.Default, _streamId, streamRevision, Guid.NewGuid(), commitSequence, SystemTime.UtcNow, new LongCheckpoint(0).Value, null, events);
+                return new Commit(Bucket.Default, _streamId, streamRevision, Guid.NewGuid(), commitSequence, DateTime.UtcNow, new LongCheckpoint(0).Value, null, events);
             }
 
             protected CommitAttempt BuildCommitAttemptStub(int streamRevision, int commitSequence)
             {
                 List<EventMessage> events = new[] {new EventMessage()}.ToList();
-                return new CommitAttempt(Bucket.Default, _streamId, streamRevision, Guid.NewGuid(), commitSequence, SystemTime.UtcNow, null, events);
+                return new CommitAttempt(Bucket.Default, _streamId, streamRevision, Guid.NewGuid(), commitSequence, DateTime.UtcNow, null, events);
             }
 
             protected ICommit BuildCommitStub(Guid commitId, int streamRevision, int commitSequence)
             {
                 List<EventMessage> events = new[] {new EventMessage()}.ToList();
-                return new Commit(Bucket.Default, _streamId, streamRevision, commitId, commitSequence, SystemTime.UtcNow, new LongCheckpoint(0).Value, null, events);
+                return new Commit(Bucket.Default, _streamId, streamRevision, commitId, commitSequence, DateTime.UtcNow, new LongCheckpoint(0).Value, null, events);
             }
         }
     }

@@ -5,13 +5,13 @@
     using System.Reactive.Linq;
     using System.Reactive.Threading.Tasks;
     using System.Threading.Tasks;
-    using FakeItEasy;
-	using FluentAssertions;
+
+    using FluentAssertions;
     using NEventStore.Persistence;
     using NEventStore.Persistence.AcceptanceTests;
     using NEventStore.Persistence.AcceptanceTests.BDD;
     using Xunit;
-
+    using NSubstitute;
     public class CreatingPollingClientTests
     {
         [Fact]
@@ -23,13 +23,14 @@
         [Fact]
         public void When_interval_less_than_zero_then_should_throw()
         {
-            Catch.Exception(() => new PollingClient(A.Fake<IPersistStreams>(),-1)).Should().BeOfType<ArgumentException>();
+            
+            Catch.Exception(() => new PollingClient(Substitute.For<IPersistStreams>(),-1)).Should().BeOfType<ArgumentException>();
         }
 
         [Fact]
         public void When_interval_is_zero_then_should_throw()
         {
-            Catch.Exception(() => new PollingClient(A.Fake<IPersistStreams>(), 0)).Should().BeOfType<ArgumentException>();
+            Catch.Exception(() => new PollingClient(Substitute.For<IPersistStreams>(), 0)).Should().BeOfType<ArgumentException>();
         }
     }
 
@@ -213,7 +214,7 @@
         public async Task should_observe_commits_on_first_observer()
         {
             var task = await Task.WhenAny(_observeCommits1Complete, Task.Delay(PollingInterval * 10));
-            Assert.Equal(task, _observeCommits1Complete);
+            task.Should().Be(_observeCommits1Complete);
         }
 
         [Fact]

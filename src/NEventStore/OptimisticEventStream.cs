@@ -19,14 +19,23 @@ namespace NEventStore
 		private readonly ICollection<Guid> _identifiers = new HashSet<Guid>();
 		private readonly ICommitEvents _persistence;
 		private readonly IDictionary<string, object> _uncommittedHeaders = new Dictionary<string, object>();
-		private bool _disposed;
+        private readonly ISystemTimeProvider _systemTypeProvider;
+        private bool _disposed;
+        
 
-		public OptimisticEventStream(string bucketId, string streamId, ICommitEvents persistence)
+        public OptimisticEventStream(
+            string bucketId, 
+            string streamId, 
+            ICommitEvents persistence,
+            ISystemTimeProvider systemTypeProvider
+        )
 		{
 			BucketId = bucketId;
 			StreamId = streamId;
 			_persistence = persistence;
-		}
+            _systemTypeProvider = systemTypeProvider;
+
+        }
 
 		public string BucketId
 		{
@@ -248,7 +257,7 @@ namespace NEventStore
 				StreamRevision + _events.Count,
 				commitId,
 				CommitSequence + 1,
-				SystemTime.UtcNow,
+                _systemTypeProvider.UtcNow,
 				_uncommittedHeaders.ToDictionary(x => x.Key, x => x.Value),
 				_events.ToList());
 		}

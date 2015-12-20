@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit.Abstractions;
@@ -9,6 +10,7 @@ namespace NEventStore.Persistence.AcceptanceTests.BDD
     public class ObservationTestClassRunner : TestClassRunner<ObservationTestCase>
     {
         readonly SpecificationBase specification;
+        
 
         public ObservationTestClassRunner(SpecificationBase specification,
                                           ITestClass testClass,

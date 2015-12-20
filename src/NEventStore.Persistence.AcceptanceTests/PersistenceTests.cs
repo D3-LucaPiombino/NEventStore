@@ -1,6 +1,10 @@
 #pragma warning disable 169
 // ReSharper disable InconsistentNaming
 
+using Xunit;
+
+[assembly: TestFramework("NEventStore.Persistence.AcceptanceTests.BDD.ObservationTestFramework", "NEventStore.Persistence.AcceptanceTests")]
+
 namespace NEventStore.Persistence.AcceptanceTests
 {
     using System;
@@ -54,7 +58,7 @@ namespace NEventStore.Persistence.AcceptanceTests
 
         protected override async Task Context()
         {
-            _now = SystemTime.UtcNow.AddYears(1);
+            _now = SystemTimeProvider.UtcNow.AddYears(1);
             _streamId = Guid.NewGuid().ToString();
             _attempt = _streamId.BuildAttempt(_now);
 
@@ -530,8 +534,8 @@ namespace NEventStore.Persistence.AcceptanceTests
         {
             _streamId = Guid.NewGuid().ToString();
 
-            _now = SystemTime.UtcNow.AddYears(1);
-            _first = _streamId.BuildAttempt(_now.AddSeconds(1));
+            _now = UtcNow.AddYears(1);
+            _first = _streamId.BuildAttempt(now:_now.AddSeconds(1));
             await Persistence.Commit(_first);
 
             _second = await Persistence.CommitNext(_first);
@@ -560,7 +564,7 @@ namespace NEventStore.Persistence.AcceptanceTests
 
         protected override async Task Context()
         {
-            _start = SystemTime.UtcNow;
+            _start = UtcNow;
             // Due to loss in precision in various storage engines, we're rounding down to the
             // nearest second to ensure include all commits from the 'start'.
             _start = _start.AddSeconds(-1);
@@ -770,7 +774,7 @@ namespace NEventStore.Persistence.AcceptanceTests
         protected override async Task Context()
         {
             _streamId = Guid.NewGuid().ToString();
-            DateTime now = SystemTime.UtcNow;
+            DateTime now = UtcNow;
             await Persistence.Commit(_streamId.BuildAttempt(now, _bucketAId));
             _attemptACommitStamp = (await Persistence.GetFrom(_bucketAId, _streamId, 0, int.MaxValue).First()).CommitStamp;
             _attemptForBucketB = _streamId.BuildAttempt(now.Subtract(TimeSpan.FromDays(1)), _bucketBId);
@@ -846,7 +850,7 @@ namespace NEventStore.Persistence.AcceptanceTests
 
         protected override async Task Context()
         {
-            _now = SystemTime.UtcNow.AddYears(1);
+            _now = UtcNow.AddYears(1);
 
             var commitToBucketA = Guid.NewGuid().ToString().BuildAttempt(_now.AddSeconds(1), _bucketAId);
 
@@ -966,7 +970,7 @@ namespace NEventStore.Persistence.AcceptanceTests
         protected override async Task Because()
         {
             _moreThanPageSize = ConfiguredPageSizeForTesting + 1;
-            var eventStore = new OptimisticEventStore(Persistence, null);
+            var eventStore = new OptimisticEventStore(Persistence, null, SystemTimeProvider);
             // TODO: Not sure how to set the actual pagesize to the const defined above
             for (int i = 0; i < _moreThanPageSize; i++)
             {
@@ -1142,60 +1146,129 @@ namespace NEventStore.Persistence.AcceptanceTests
         }
     }
 
-    public class PersistenceEngineConcern : SpecificationBase, IClassFixture<PersistenceEngineFixture>
+    
+
+    public class PersistenceEngineConcern : SpecificationBase
     {
         private PersistenceEngineFixture _fixture;
 
-        protected IPersistStreams Persistence
-        {
-            get { return _fixture.Persistence; ; }
-        }
+        protected IPersistStreams Persistence => _fixture.Persistence;
+
+        protected SystemTimeProviderFake SystemTimeProvider => _fixture.SystemTimeProvider;
+
+        protected DateTime UtcNow => SystemTimeProvider.UtcNow;
 
         protected int ConfiguredPageSizeForTesting
         {
             get { return 2; }
         }
 
-        protected void Reinitialize()
+        public Task SetFixture(PersistenceEngineFixture fixture)
         {
-            _fixture.Initialize(ConfiguredPageSizeForTesting);
-        }
-
-        public void SetFixture(PersistenceEngineFixture data)
-        {
-            _fixture = data;
-            _fixture.Initialize(ConfiguredPageSizeForTesting);
+            _fixture = fixture;
+            return _fixture.InitializeAsync(ConfiguredPageSizeForTesting);
         }
     }
 
-    public partial class PersistenceEngineFixture : IDisposable
-    {
-        private readonly Func<int, IPersistStreams> _createPersistence;
-        private IPersistStreams _persistence;
 
-        public void Initialize(int pageSize)
+    //public partial class PersistenceEngineConcern : SpecificationBase, IAsyncLifetime
+    //{
+    //    private readonly 
+    //        Func<int, ISystemTimeProvider, IPersistStreams> _createPersistence;
+
+    //    protected IPersistStreams Persistence
+    //    {
+    //        get;
+    //        private set;
+    //    }
+
+    //    protected SystemTimeProviderFake SystemTimeProvider { get; } = new SystemTimeProviderFake();
+
+    //    protected DateTime UtcNow => SystemTimeProvider.UtcNow;
+
+    //    protected int ConfiguredPageSizeForTesting
+    //    {
+    //        get { return 2; }
+    //    }
+        
+    //    public async Task InitializeAsync()
+    //    {
+    //        if (Persistence != null && !Persistence.IsDisposed)
+    //        {
+    //            await Persistence.Drop();
+    //            Persistence.Dispose();
+    //        }
+    //        Persistence = _createPersistence(ConfiguredPageSizeForTesting, SystemTimeProvider);
+    //        //_persistence = new PerformanceCounterPersistenceEngine(_persistence, "tests");
+    //        await Persistence.Initialize();
+    //    }
+
+    //    public async Task DisposeAsync()
+    //    {
+    //        if (Persistence != null && !Persistence.IsDisposed)
+    //        {
+    //            await Persistence.Drop();
+    //            Persistence.Dispose();
+    //        }
+    //    }
+    //}
+
+    public class SystemTimeProviderFake : ISystemTimeProvider
+    {
+        private Func<DateTime> _resolveTime;
+
+        public SystemTimeProviderFake()
         {
-            if (_persistence != null && !_persistence.IsDisposed)
+            _resolveTime = () => DateTime.UtcNow;
+        }
+
+        public DateTime UtcNow
+        {
+            get { return _resolveTime(); }
+        }
+
+        public void SetResolver(Func<DateTime> timeResolver)
+        {
+            _resolveTime = timeResolver;
+        }
+    }
+
+    public partial class PersistenceEngineFixture : IAsyncLifetime
+    {
+        private readonly Func<int, ISystemTimeProvider, IPersistStreams> _createPersistence;
+
+        public SystemTimeProviderFake SystemTimeProvider { get; } = new SystemTimeProviderFake();
+
+        public async Task InitializeAsync(int pageSize)
+        {
+            if (Persistence != null && !Persistence.IsDisposed)
             {
-                _persistence.Drop();
-                _persistence.Dispose();
+                await Persistence.Drop();
+                Persistence.Dispose();
             }
-            _persistence = new PerformanceCounterPersistenceEngine(_createPersistence(pageSize), "tests");
-            _persistence.Initialize();
+            Persistence = _createPersistence(pageSize, SystemTimeProvider);
+            //_persistence = new PerformanceCounterPersistenceEngine(_persistence, "tests");
+            await Persistence.Initialize();
+        }
+
+        public async Task DisposeAsync()
+        {
+            if (Persistence != null && !Persistence.IsDisposed)
+            {
+                await Persistence.Drop();
+                Persistence.Dispose();
+            }
+        }
+
+        public Task InitializeAsync()
+        {
+            return Task.FromResult(true);
         }
 
         public IPersistStreams Persistence
         {
-            get { return _persistence; }
-        }
-
-        public void Dispose()
-        {
-            if (_persistence != null && !_persistence.IsDisposed)
-            {
-                _persistence.Drop();
-                _persistence.Dispose();
-            }
+            get;
+            private set;
         }
     }
     // ReSharper restore InconsistentNaming

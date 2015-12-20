@@ -6,7 +6,7 @@ using Xunit.Sdk;
 
 namespace NEventStore.Persistence.AcceptanceTests.BDD
 {
-    public class ObservationTestCase : TestMethodTestCase
+    public class ObservationTestCase : TestMethodTestCase, IXunitTestCase
     {
         [Obsolete("For de-serialization purposes only", error: true)]
         public ObservationTestCase() { }
@@ -27,6 +27,11 @@ namespace NEventStore.Persistence.AcceptanceTests.BDD
                                          CancellationTokenSource cancellationTokenSource)
         {
             return new ObservationTestCaseRunner(specification, this, DisplayName, messageBus, aggregator, cancellationTokenSource).RunAsync();
+        }
+
+        public Task<RunSummary> RunAsync(IMessageSink diagnosticMessageSink, IMessageBus messageBus, object[] constructorArguments, ExceptionAggregator aggregator, CancellationTokenSource cancellationTokenSource)
+        {
+            throw new NotImplementedException();
         }
     }
 }

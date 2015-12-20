@@ -17,9 +17,11 @@ namespace NEventStore.Persistence.AcceptanceTests
             return new LinkedList<T>(collection);
         }
 
-        public static Task<ICommit> CommitSingle(this IPersistStreams persistence, string streamId = null)
+        public static Task<ICommit> CommitSingle(this IPersistStreams persistence, string streamId = null, DateTime? now = null)
         {
-            CommitAttempt commitAttempt = (streamId ?? Guid.NewGuid().ToString()).BuildAttempt();
+            CommitAttempt commitAttempt = (streamId ?? Guid.NewGuid().ToString())
+                .BuildAttempt(now:now);
+
             return persistence.Commit(commitAttempt);
         }
 
@@ -35,14 +37,15 @@ namespace NEventStore.Persistence.AcceptanceTests
             return persistence.Commit(nextAttempt);
         }
 
-        public static async Task<IEnumerable<CommitAttempt>> CommitMany(this IPersistStreams persistence, int numberOfCommits, string streamId = null, string bucketId = null)
+        public static async Task<IEnumerable<CommitAttempt>> CommitMany(this IPersistStreams persistence, 
+            int numberOfCommits, string streamId = null, string bucketId = null, DateTime? now = null)
         {
             var commits = new List<CommitAttempt>();
             CommitAttempt attempt = null;
 
             for (int i = 0; i < numberOfCommits; i++)
             {
-                attempt = attempt == null ? (streamId ?? Guid.NewGuid().ToString()).BuildAttempt(null, bucketId) : attempt.BuildNextAttempt();
+                attempt = attempt == null ? (streamId ?? Guid.NewGuid().ToString()).BuildAttempt(now, bucketId) : attempt.BuildNextAttempt();
                 await persistence.Commit(attempt);
                 commits.Add(attempt);
             }
@@ -52,7 +55,7 @@ namespace NEventStore.Persistence.AcceptanceTests
 
         public static CommitAttempt BuildAttempt(this string streamId, DateTime? now = null, string bucketId = null)
         {
-            now = now ?? SystemTime.UtcNow;
+            now = now ?? DateTime.UtcNow;
             bucketId = bucketId ?? Bucket.Default;
 
             var messages = new List<EventMessage>
@@ -120,7 +123,7 @@ namespace NEventStore.Persistence.AcceptanceTests
             };
         }
 
-        public static CommitAttempt BuildCommit(this string streamId)
+        public static CommitAttempt BuildCommit(this string streamId, ISystemTimeProvider systemTimeProvider)
         {
             const int streamRevision = 2;
             const int commitSequence = 2;
@@ -140,7 +143,7 @@ namespace NEventStore.Persistence.AcceptanceTests
                 }
             };
 
-            return new CommitAttempt(streamId, streamRevision, commitId, commitSequence, SystemTime.UtcNow, headers, events.ToList());
+            return new CommitAttempt(streamId, streamRevision, commitId, commitSequence, systemTimeProvider.UtcNow, headers, events.ToList());
         }
 
         [Serializable]

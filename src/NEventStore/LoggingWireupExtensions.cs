@@ -7,12 +7,23 @@ namespace NEventStore
     {
         public static Wireup LogToConsoleWindow(this Wireup wireup)
         {
-            return wireup.LogTo(type => new ConsoleWindowLogger(type));
+            return wireup.LogTo(type => 
+                new ConsoleWindowLogger(
+                    type, 
+                    wireup.ResolveService<ISystemTimeProvider>()
+                )
+            );
         }
 
         public static Wireup LogToOutputWindow(this Wireup wireup)
         {
-            return wireup.LogTo(type => new OutputWindowLogger(type));
+            
+            return wireup.LogTo(type => 
+                new OutputWindowLogger(
+                    type, 
+                    wireup.ResolveService<ISystemTimeProvider>()
+                )
+            );
         }
 
         public static Wireup LogTo(this Wireup wireup, Func<Type, ILog> logger)

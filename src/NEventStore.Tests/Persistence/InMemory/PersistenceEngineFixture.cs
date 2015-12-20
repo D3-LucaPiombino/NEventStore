@@ -7,8 +7,18 @@ namespace NEventStore.Persistence.AcceptanceTests
     {
         public PersistenceEngineFixture()
         {
-            _createPersistence = _ =>
+            _createPersistence = (_, systemTimeProvider) =>
                 new InMemoryPersistenceEngine();
         }
     }
+
+
+    //public partial class PersistenceEngineConcern
+    //{
+    //    public PersistenceEngineConcern()
+    //    {
+    //        _createPersistence = (_, systemTimeProvider) =>
+    //            new InMemoryPersistenceEngine();
+    //    }
+    //}
 }

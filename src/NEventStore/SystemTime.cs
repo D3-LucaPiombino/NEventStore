@@ -3,23 +3,22 @@ namespace NEventStore
     using System;
 
     /// <summary>
-    ///     Provides the ability to override the current moment in time to facilitate testing.
-    ///     Original idea by Ayende Rahien:
-    ///     http://ayende.com/Blog/archive/2008/07/07/Dealing-with-time-in-tests.aspx
+    /// Provides the the current moment in time.
     /// </summary>
-    public static class SystemTime
+    public interface ISystemTimeProvider
     {
-        /// <summary>
-        ///     The callback to be used to resolve the current moment in time.
-        /// </summary>
-        public static Func<DateTime> Resolver;
+        DateTime UtcNow { get; }
+    }
 
-        /// <summary>
-        ///     Gets the current moment in time.
-        /// </summary>
-        public static DateTime UtcNow
+    public class DefaultSystemTimeProvider : ISystemTimeProvider
+    {
+        public DateTime UtcNow
         {
-            get { return Resolver == null ? DateTime.UtcNow : Resolver(); }
+            get
+            {
+                return DateTime.UtcNow;
+            }
         }
     }
+
 }

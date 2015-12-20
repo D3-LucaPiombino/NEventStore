@@ -1,4 +1,8 @@
-﻿namespace NEventStore.Serialization.AcceptanceTests
+﻿using Xunit;
+
+[assembly: TestFramework("NEventStore.Persistence.AcceptanceTests.BDD.ObservationTestFramework", "NEventStore.Persistence.AcceptanceTests")]
+
+namespace NEventStore.Serialization.AcceptanceTests
 {
 	using System;
 	using System.Collections.Generic;

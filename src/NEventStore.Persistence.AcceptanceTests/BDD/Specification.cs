@@ -30,4 +30,7 @@ namespace NEventStore.Persistence.AcceptanceTests.BDD
             BecauseSynch();
         }
     }
+
+    
+
 }
