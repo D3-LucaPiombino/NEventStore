@@ -28,14 +28,19 @@ namespace NEventStore.Persistence.AcceptanceTests.BDD
         {
             return new TestClass(TestCollectionFactory.Get(@class), @class);
         }
+        protected virtual string GetSkipReason(IAttributeInfo factAttribute)
+            => factAttribute.GetNamedArgument<string>("Skip");
 
         bool FindTestsForMethod(ITestMethod testMethod,
                                 TestMethodDisplay defaultMethodDisplay,
                                 bool includeSourceInformation,
                                 IMessageBus messageBus)
         {
-            var observationAttribute = testMethod.Method.GetCustomAttributes(typeof(FactAttribute)).FirstOrDefault();
+            var observationAttribute = testMethod.Method.GetCustomAttributes(typeof(FactAttribute)).FirstOrDefault(); 
             if (observationAttribute == null)
+                return true;
+
+            if (!string.IsNullOrWhiteSpace(GetSkipReason(observationAttribute)))
                 return true;
 
             var testCase = new ObservationTestCase(defaultMethodDisplay, testMethod);
