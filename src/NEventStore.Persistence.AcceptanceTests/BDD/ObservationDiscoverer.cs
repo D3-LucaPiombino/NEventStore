@@ -40,10 +40,16 @@ namespace NEventStore.Persistence.AcceptanceTests.BDD
             if (observationAttribute == null)
                 return true;
 
-            if (!string.IsNullOrWhiteSpace(GetSkipReason(observationAttribute)))
-                return true;
-
             var testCase = new ObservationTestCase(defaultMethodDisplay, testMethod);
+
+            var skipReason = GetSkipReason(observationAttribute);
+            if (!string.IsNullOrWhiteSpace(skipReason))
+            {
+                var skipTestCase = new SkippedTestCase(defaultMethodDisplay, testMethod);
+                skipTestCase.SetSkipReason(skipReason);
+                testCase = skipTestCase;
+            }
+            
             if (!ReportDiscoveredTestCase(testCase, includeSourceInformation, messageBus))
                 return false;
 
