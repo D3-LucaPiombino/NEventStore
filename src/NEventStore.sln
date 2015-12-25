@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
-VisualStudioVersion = 14.0.23107.0
+VisualStudioVersion = 14.0.24720.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".test", ".test", "{D3C17830-A461-4BA5-A672-461B19B33936}"
 	ProjectSection(SolutionItems) = preProject
@@ -22,7 +22,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{08A28C
 	ProjectSection(SolutionItems) = preProject
 		.nuget\NEventStore.nuspec = .nuget\NEventStore.nuspec
 		.nuget\NuGet.Config = .nuget\NuGet.Config
-		.nuget\packages.config = .nuget\packages.config
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NEventStore.Persistence.AcceptanceTests", "NEventStore.Persistence.AcceptanceTests\NEventStore.Persistence.AcceptanceTests.csproj", "{3FE594FE-16FF-4405-97D5-5A58FB12520B}"
