@@ -111,3 +111,4 @@ publish-net40/
 nunit.TestResult.*
 /output
 project.lock.json
+/src/.vs/config/applicationhost.config
