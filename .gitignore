@@ -110,6 +110,7 @@ UpgradeLog*.XML
 publish-net40/
 nunit.TestResult.*
 /output
-project.lock.json
+*.lock.json
 /src/.vs/config/applicationhost.config
-/src/NEventStore.Persistence.AcceptanceTests/NEventStore.Persistence.AcceptanceTests.nuget.props
+*.nuget.props
+*.nuget.targets
