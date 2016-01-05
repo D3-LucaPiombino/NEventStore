@@ -110,3 +110,7 @@ UpgradeLog*.XML
 publish-net40/
 nunit.TestResult.*
 /output
+*.lock.json
+/src/.vs/config/applicationhost.config
+*.nuget.props
+*.nuget.targets

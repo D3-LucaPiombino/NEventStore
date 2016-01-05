@@ -1,0 +1,42 @@
+﻿{
+  "version": "1.0.0-*",
+  "description": "NEventStore_coreclr Class Library",
+  "authors": [
+    "lucap"
+  ],
+  "tags": [
+    ""
+  ],
+  "projectUrl": "",
+  "licenseUrl": "",
+  "dependencies": {
+    "ILMerge": "2.14.1208",
+    "Newtonsoft.Json": "8.0.1",
+    "Rx-Core": "2.2.5",
+    "Rx-Interfaces": "2.2.5",
+    "Rx-Linq": "2.2.5"
+  },
+  "frameworks": {
+    "net45": {
+      "frameworkAssemblies": {
+        "System.Configuration": "4.0.0.0",
+        "System.Data": "4.0.0.0",
+        "System.Runtime.Serialization": "4.0.0.0",
+        "System.Transactions": "4.0.0.0"
+      }
+    }
+  },
+  "runtimes": {
+    "win-anycpu": {},
+    "win": {}
+  },
+  "compileExclude": [
+    "SynchronousDispatchSchedulerWireup.cs",
+    "AsynchronousDispatchSchedulerWireup.cs",
+    "DispatcherWireupExtensions.cs",
+    "Dispatcher\\NullDispatcher.cs",
+    "Dispatcher\\SynchronousDispatchScheduler.cs",
+    "Dispatcher\\AsynchronousDispatchScheduler.cs",
+    "DispatchSchedulerPipelineHook.cs"
+  ]
+}
