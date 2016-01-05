@@ -112,3 +112,4 @@ nunit.TestResult.*
 /output
 project.lock.json
 /src/.vs/config/applicationhost.config
+/src/NEventStore.Persistence.AcceptanceTests/NEventStore.Persistence.AcceptanceTests.nuget.props
