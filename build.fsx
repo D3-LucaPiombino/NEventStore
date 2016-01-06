@@ -216,7 +216,7 @@ Target "DebugTest" (fun _ ->
   trace "Test ..."
 )
 
-Target "PublishNugetPackages" (fun _ ->
+Target "PublishPackages" (fun _ ->
 
     let setParams defaults = {
         defaults with 
@@ -234,7 +234,7 @@ Target "PublishNugetPackages" (fun _ ->
   ==> "Build"
   ==> "Package"
   ==> "UnitTests"
-  =?> ("PublishPackage", not isLocalBuild)
+  =?> ("PublishPackages", not isLocalBuild)
   ==> "Default"
 
 RunTargetOrDefault "Default"
