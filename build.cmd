@@ -1,4 +1,4 @@
-@echo off
+
 cls
 
 pushd src
