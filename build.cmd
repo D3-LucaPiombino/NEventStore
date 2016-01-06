@@ -4,7 +4,10 @@ cls
 echo %CD%
 
 pushd src
+
+dir %CD%\..\build\tools\ /s
 echo %CD%
+
 %CD%\..\build\tools\nuget\nuget.exe restore
 echo %CD%
 popd
