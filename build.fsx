@@ -1,4 +1,4 @@
-#r @"build/tools/FAKE/4.12.0/tools/FakeLib.dll"
+#r @"artifacts/#build_deps/FAKE/4.12.0/tools/FakeLib.dll"
 
 open System.IO
 open Fake
@@ -8,10 +8,8 @@ open Fake.SemVerHelper
 open Fake.Testing.XUnit2
 
 
-
-let buildOutputPath = "./build/output/bin"
-let buildArtifactPath = "./build/output/artifacts"
-let nugetWorkingPath = FullName "./build/output/temp"
+let buildArtifactPath = "./artifacts/nuget_packages"
+let nugetWorkingPath = FullName "./artifacts/#temp"
 
 
 
@@ -47,11 +45,9 @@ let NuGetVersion = nugetVersion()
 printfn "Using version: %s" Version
 
 Target "Clean" (fun _ ->
-  ensureDirectory buildOutputPath
   ensureDirectory buildArtifactPath
   ensureDirectory nugetWorkingPath
 
-  CleanDir buildOutputPath
   CleanDir buildArtifactPath
   CleanDir nugetWorkingPath
 )

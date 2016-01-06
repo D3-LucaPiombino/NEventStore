@@ -1,18 +1,8 @@
 @echo off
 cls
-
-echo %CD%
-dir /s
-
 pushd src
-
-dir %CD%\..\build\tools\ /s
-echo %CD%
-
-%CD%\..\build\tools\nuget\nuget.exe restore
-echo %CD%
+..\build\tools\nuget\nuget.exe restore -OutputDirectory "..\artifacts\#build_deps"
 popd
 
-
-rem build\tools\nuget\nuget.exe restore build\tools\build.project.json -OutputDirectory "build\tools"
-rem build\tools\FAKE\4.12.0\tools\fake.exe build.fsx %*
+build\tools\nuget\nuget.exe restore build\tools\build.project.json -OutputDirectory "artifacts\#build_deps"
+artifacts\#build_deps\FAKE\4.12.0\tools\fake.exe build.fsx %*
