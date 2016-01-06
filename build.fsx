@@ -8,6 +8,7 @@ open Fake.SemVerHelper
 open Fake.Testing.XUnit2
 
 
+let nugetPackageRepositoryPath = FullName "./artifacts/#build_deps"
 let buildArtifactPath = "./artifacts/nuget_packages"
 let nugetWorkingPath = FullName "./artifacts/#temp"
 
@@ -52,13 +53,31 @@ Target "Clean" (fun _ ->
   CleanDir nugetWorkingPath
 )
 
-//Target "RestorePackages" (fun _ -> 
-//     "./src/MassTransit.sln"
-//     |> RestoreMSSolutionPackages (fun p ->
-//         { p with
-//             OutputPath = packagesPath
-//             Retries = 4 })
-//)
+//let RestoreMSSolutionPackages2 setParams solutionFile =
+//    traceStartTask "RestoreSolutionPackages" solutionFile
+//    let (parameters:RestorePackageParams) = RestorePackageDefaults |> setParams
+//
+//    let sources = parameters.Sources |> buildSources
+//
+//    let args = 
+//        "\"restore\" \"" + (solutionFile |> FullName) + "\"" + sources
+//        //" \"-OutputDirectory\" \"" + (parameters.OutputPath |> FullName) + "\"" + sources
+//
+//    runNuGetTrial parameters.Retries parameters.ToolPath parameters.TimeOut args (fun () -> failwithf "Package restore of %s failed" solutionFile)
+//
+//    traceEndTask "RestoreSolutionPackages" solutionFile
+
+Target "RestorePackages" (fun _ -> 
+    
+
+     "./src/NEventStore.sln"
+     |> RestoreMSSolutionPackages (fun p ->
+         { p with
+             OutputPath = nugetPackageRepositoryPath
+             Retries = 4 })
+)
+
+
 
 Target "Build" (fun _ ->
 
@@ -70,6 +89,7 @@ Target "Build" (fun _ ->
     ]
 
   let buildMode = getBuildParamOrDefault "buildMode" "Release"
+  
   let setParams defaults = { 
     defaults with
         Verbosity = Some(Quiet)
@@ -78,36 +98,21 @@ Target "Build" (fun _ ->
             [
                 "Optimize", "True"
                 "DebugSymbols", "True"
-                //"RestorePackages", "True"
                 "Configuration", buildMode
                 "TargetFrameworkVersion", "v4.5"
                 "Platform", "Any CPU"
+                // Note that this important, without this msbuild
+                // will try to resolve package references from C:\Users\<user>\.nuget\packages during build
+                "NuGetPackagesDirectory", nugetPackageRepositoryPath 
             ]
   }
 
   build setParams @".\src\NEventStore.sln"
       |> DoNothing
 
-  let unsignedSetParams defaults = { 
-    defaults with
-        Verbosity = Some(Quiet)
-        Targets = ["Build"]
-        Properties =
-            [
-                "Optimize", "True"
-                "DebugSymbols", "True"
-                "Configuration", "Release"
-                "TargetFrameworkVersion", "v4.5"
-                "Platform", "Any CPU"
-            ]
-  }
-
-
-
-
-  build unsignedSetParams @".\src\NEventStore.sln"
-      |> DoNothing
 )
+
+
 
 let testDlls = [ "./src/*.Tests/bin/Release/*.Tests.dll" ]
 
@@ -180,7 +185,7 @@ Target "DebugTest" (fun _ ->
 )
 
 "Clean"
-//  ==> "RestorePackages"
+  ==> "RestorePackages"
   ==> "Build"
   // ==> "Package"
   ==> "UnitTests"
