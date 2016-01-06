@@ -1,4 +1,5 @@
 #r @"artifacts/#build_deps/FAKE/4.12.0/tools/FakeLib.dll"
+#r @"artifacts/#build_deps/FSharp.Data/2.2.5/lib/net40/FSharp.Data.dll"
 
 open System.IO
 open Fake
@@ -6,6 +7,7 @@ open Fake.AssemblyInfoFile
 open Fake.Git.Information
 open Fake.SemVerHelper
 open Fake.Testing.XUnit2
+open FSharp.Data;
 
 
 let nugetPackageRepositoryPath = FullName "./artifacts/#build_deps"
@@ -34,8 +36,9 @@ let informationalVersion = (fun _ ->
 )
 
 let nugetVersion = (fun _ ->
-  let branchName = (branch ".")
-  let label = if branchName="master" then "" else "-" + branchName
+  let branchName = (branch ".").Replace("_", "")
+
+  let label = if branchName="master" then "" else "-" + branchName.Substring(0, min 20 branchName.Length)
   (Version + label)
 )
 
@@ -53,23 +56,8 @@ Target "Clean" (fun _ ->
   CleanDir nugetWorkingPath
 )
 
-//let RestoreMSSolutionPackages2 setParams solutionFile =
-//    traceStartTask "RestoreSolutionPackages" solutionFile
-//    let (parameters:RestorePackageParams) = RestorePackageDefaults |> setParams
-//
-//    let sources = parameters.Sources |> buildSources
-//
-//    let args = 
-//        "\"restore\" \"" + (solutionFile |> FullName) + "\"" + sources
-//        //" \"-OutputDirectory\" \"" + (parameters.OutputPath |> FullName) + "\"" + sources
-//
-//    runNuGetTrial parameters.Retries parameters.ToolPath parameters.TimeOut args (fun () -> failwithf "Package restore of %s failed" solutionFile)
-//
-//    traceEndTask "RestoreSolutionPackages" solutionFile
 
 Target "RestorePackages" (fun _ -> 
-    
-
      "./src/NEventStore.sln"
      |> RestoreMSSolutionPackages (fun p ->
          { p with
@@ -124,29 +112,82 @@ Target "UnitTests" (fun _ ->
             {p with HtmlOutputPath = Some (buildArtifactPath @@ "xunit.html")})
 )
 
+
+
+let getProjectDependencies (projectJsonFile:string) = 
+    let json = JsonValue.Load( new StreamReader(projectJsonFile))
+    let deps = json.GetProperty("dependencies")
+    
+
+    let(|PkgVersion|_|) x =
+        match x with
+        | ("version", JsonValue.String version ) -> Some(version)
+        | _ -> None
+
+    
+    let(|RuntimeDep|_|) x =
+        match x with
+        | ("type", JsonValue.String "default" ) -> Some(RuntimeDep)
+        | _                                     -> None
+
+    let(|BuildDep|_|) x =
+        match x with
+        | ("type", JsonValue.String "build"   ) -> Some(BuildDep)
+        | _                                     -> None
+
+    
+
+    let rec computeRuntimeDependencies packageId jsonValue =
+        match jsonValue with
+        | JsonValue.String version  -> Some (packageId , version)
+        | JsonValue.Record properties    -> 
+            let rec scanProperties propertylist packageType packageVersion =
+                match propertylist with
+                | jsonProperty::remainingProperties -> 
+                    match (jsonProperty, packageType, packageVersion) with
+                    | ( RuntimeDep         , _          , Some(version) ) -> Some (packageId , version)
+                    | ( PkgVersion(version), Some(true) , _             ) -> Some (packageId , version)
+                    | ( PkgVersion(version), _          , _             ) -> scanProperties remainingProperties packageType (Some version) // look for "type"
+                    | ( RuntimeDep         , _          , None          ) -> scanProperties remainingProperties (Some true) packageVersion // look for "version"
+                    | ( BuildDep           , _          , _             ) -> None                                                          // discard this
+                    | _                                                   -> scanProperties remainingProperties packageType packageVersion
+                | [] -> None
+            scanProperties (Array.toList properties) None None
+        | _ -> None
+
+    deps
+        .Properties() 
+        |> Array.toList
+        |> List.map(fun (packageId, packageInfo) -> computeRuntimeDependencies packageId packageInfo) 
+        |> List.choose id
+    
+    
+    
 type packageInfo = {
     Project: string
-    PackageFile: string
+    ProjectJson: string
     Summary: string
+    Dependencies : NugetDependencies
     Files: list<string*string option*string option>
 }
 
 Target "Package" (fun _ ->
 
+  trace "Create nuget packages..."
+
   let nugs = [| { Project = "NEventStore"
                   Summary = "NEventStore is a persistence agnostic event sourcing library for .NET. The primary use is most often associated with CQRS."
-                  PackageFile = @".\src\MassTransit\packages.config"
-                  Files = [ (@"..\src\MassTransit\bin\Release\MassTransit.*", Some @"lib\net45", None);
-                            (@"..\src\MassTransit\**\*.cs", Some "src", None) ] }
+                  ProjectJson = @".\src\NEventStore\project.json"
+                  Files = [ (@"..\..\src\NEventStore\bin\Release\NEventStore*", Some @"lib\net45", None);
+                            (@"..\..\src\NEventStore\**\*.cs", Some "src", None) ] 
+                  Dependencies = [ ]
+                }
              |]
 
   nugs
     |> Array.iter (fun nug ->
 
-      let getDeps daNug : NugetDependencies =
-        if daNug.Project = "MassTransit" then (getDependencies daNug.PackageFile)
-        else if daNug.Project = "MassTransit.Host" then (("MassTransit", NuGetVersion) :: ("MassTransit.Autofac", NuGetVersion) :: ("MassTransit.Log4Net", NuGetVersion) :: (getDependencies daNug.PackageFile))
-        else ("MassTransit", NuGetVersion) :: (getDependencies daNug.PackageFile)
+      let getDeps daNug : NugetDependencies = getProjectDependencies daNug.ProjectJson
 
       let setParams defaults = {
         defaults with 
@@ -154,7 +195,7 @@ Target "Package" (fun _ ->
           Description = "The purpose of the EventStore is to represent a series of events as a stream. Furthermore, it provides hooks whereby any events committed to the stream can be dispatched to interested parties."
           OutputPath = buildArtifactPath
           Project = nug.Project
-          Dependencies = (getDeps nug)
+          Dependencies = (getDeps nug) @ nug.Dependencies
           Summary = nug.Summary
           SymbolPackage = NugetSymbolPackage.Nuspec
           Version = NuGetVersion
@@ -172,23 +213,28 @@ Target "Default" (fun _ ->
 
 
 Target "DebugTest" (fun _ ->
+  trace "Test ..."
+)
 
-    let testDlls2 = [ "**/bin/Release/*.Tests.dll" ] |> Seq.collect (fun glob -> !!glob) 
-    // trace glob
-    let i = [| 
-        for globexpr in testDlls2 do
-            for file in !! globexpr -> file
-    |]
-    i
-    |> Seq.iter (fun file -> trace file )
+Target "PublishNugetPackages" (fun _ ->
 
+    let setParams defaults = {
+        defaults with 
+          AccessKey = environVarOrFail "APPVEYOR_NUGET_ACCOUNT_APIKEY"
+          Publish = true
+          PublishUrl = environVarOrFail "APPVEYOR_NUGET_ACCOUNT_FEED"
+      } 
+
+    NuGetPublish setParams 
 )
 
 "Clean"
+  //==> "DebugTest"
   ==> "RestorePackages"
   ==> "Build"
-  // ==> "Package"
+  ==> "Package"
   ==> "UnitTests"
+  =?> ("PublishPackage", not isLocalBuild)
   ==> "Default"
 
 RunTargetOrDefault "Default"
