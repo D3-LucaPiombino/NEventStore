@@ -45,6 +45,25 @@ let nugetVersion = (fun _ ->
 let InfoVersion = informationalVersion()
 let NuGetVersion = nugetVersion()
 
+type packageInfo = {
+    Project: string
+    ProjectJson: string
+    Summary: string
+    Dependencies : NugetDependencies
+    Files: list<string*string option*string option>
+}
+
+let nugs = [| { Project = "NEventStore"
+                Summary = "NEventStore is a persistence agnostic event sourcing library for .NET. The primary use is most often associated with CQRS."
+                ProjectJson = @".\src\NEventStore\project.json"
+                Files = [ (@"..\..\src\NEventStore\bin\Release\NEventStore*", Some @"lib\net45", None);
+                        (@"..\..\src\NEventStore\**\*.cs", Some "src", None) ] 
+                Dependencies = [ ]
+            }
+    |]
+
+let testDlls = [ "./src/*.Tests/bin/Release/*.Tests.dll" ]
+
 
 printfn "Using version: %s" Version
 
@@ -99,10 +118,6 @@ Target "Build" (fun _ ->
       |> DoNothing
 
 )
-
-
-
-let testDlls = [ "./src/*.Tests/bin/Release/*.Tests.dll" ]
 
 
 Target "UnitTests" (fun _ ->
@@ -163,26 +178,11 @@ let getProjectDependencies (projectJsonFile:string) =
     
     
     
-type packageInfo = {
-    Project: string
-    ProjectJson: string
-    Summary: string
-    Dependencies : NugetDependencies
-    Files: list<string*string option*string option>
-}
+
 
 Target "Package" (fun _ ->
 
   trace "Create nuget packages..."
-
-  let nugs = [| { Project = "NEventStore"
-                  Summary = "NEventStore is a persistence agnostic event sourcing library for .NET. The primary use is most often associated with CQRS."
-                  ProjectJson = @".\src\NEventStore\project.json"
-                  Files = [ (@"..\..\src\NEventStore\bin\Release\NEventStore*", Some @"lib\net45", None);
-                            (@"..\..\src\NEventStore\**\*.cs", Some "src", None) ] 
-                  Dependencies = [ ]
-                }
-             |]
 
   nugs
     |> Array.iter (fun nug ->
@@ -217,15 +217,24 @@ Target "DebugTest" (fun _ ->
 )
 
 Target "PublishPackages" (fun _ ->
+    
+    nugs
+    |> Array.iter (fun nug ->
 
-    let setParams defaults = {
+      let getDeps daNug : NugetDependencies = getProjectDependencies daNug.ProjectJson
+      
+      let setParams defaults = {
         defaults with 
           AccessKey = environVarOrFail "APPVEYOR_NUGET_ACCOUNT_APIKEY"
           Publish = true
           PublishUrl = environVarOrFail "APPVEYOR_NUGET_ACCOUNT_FEED"
+          Project = nug.Project
+          SymbolPackage = NugetSymbolPackage.Nuspec
+          Version = NuGetVersion
+          WorkingDir = nugetWorkingPath
       } 
-
-    NuGetPublish setParams 
+      NuGetPublish setParams 
+    )
 )
 
 "Clean"
