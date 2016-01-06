@@ -180,7 +180,7 @@ let getProjectDependencies (projectJsonFile:string) =
     
 
 
-Target "Package" (fun _ ->
+Target "CreatePackages" (fun _ ->
 
   trace "Create nuget packages..."
 
@@ -232,6 +232,7 @@ Target "PublishPackages" (fun _ ->
           SymbolPackage = NugetSymbolPackage.Nuspec
           Version = NuGetVersion
           WorkingDir = nugetWorkingPath
+          OutputPath = buildArtifactPath
       } 
       NuGetPublish setParams 
     )
@@ -241,7 +242,7 @@ Target "PublishPackages" (fun _ ->
   //==> "DebugTest"
   ==> "RestorePackages"
   ==> "Build"
-  ==> "Package"
+  ==> "CreatePackages"
   ==> "UnitTests"
   =?> ("PublishPackages", not isLocalBuild)
   ==> "Default"
