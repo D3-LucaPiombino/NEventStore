@@ -1,7 +1,8 @@
 {
   "dependencies": {
     "xunit.runner.console": "2.1.0",
-    "FAKE": "4.12.0"
+    "FAKE": "4.12.0",
+    "FSharp.Data": "2.2.5"
   },
   "frameworks": {
     "net45": { }
