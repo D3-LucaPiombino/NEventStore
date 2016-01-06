@@ -114,3 +114,5 @@ nunit.TestResult.*
 /src/.vs/config/applicationhost.config
 *.nuget.props
 *.nuget.targets
+/.fake/*
+/build/output/*
