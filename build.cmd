@@ -2,6 +2,7 @@
 cls
 
 echo %CD%
+dir /s
 
 pushd src
 
