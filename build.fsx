@@ -1,5 +1,7 @@
-#r @"artifacts/#build_deps/FAKE/4.12.0/tools/FakeLib.dll"
+#I @"artifacts/#build_deps/FAKE/4.12.0/tools"
+#r @"FakeLib.dll"
 #r @"artifacts/#build_deps/FSharp.Data/2.2.5/lib/net40/FSharp.Data.dll"
+#load "artifacts/#build_deps/SourceLink.Fake/1.1.0/tools/SourceLink.fsx"
 
 open System.IO
 open Fake
@@ -8,6 +10,7 @@ open Fake.Git.Information
 open Fake.SemVerHelper
 open Fake.Testing.XUnit2
 open FSharp.Data;
+open SourceLink;
 
 
 let nugetPackageRepositoryPath = FullName "./artifacts/#build_deps"
@@ -26,6 +29,8 @@ let Version = semVersion.ToString()
 let branch = (fun _ ->
   (environVarOrDefault "APPVEYOR_REPO_BRANCH" (getBranchName "."))
 )
+
+let gitRaw = environVarOrDefault "gitRaw" "https://raw.github.com/D3-LucaPiombino"
 
 let FileVersion = (environVarOrDefault "APPVEYOR_BUILD_VERSION" (Version + "." + "0"))
 
@@ -180,7 +185,7 @@ let getProjectDependencies (projectJsonFile:string) =
     
 
 
-Target "CreatePackages" (fun _ ->
+Target "CreateNuget" (fun _ ->
 
   trace "Create nuget packages..."
 
@@ -216,7 +221,7 @@ Target "DebugTest" (fun _ ->
   trace "Test ..."
 )
 
-Target "PublishPackages" (fun _ ->
+Target "PublishNugetToAppVeyor" (fun _ ->
     
     nugs
     |> Array.iter (fun nug ->
@@ -238,13 +243,28 @@ Target "PublishPackages" (fun _ ->
     )
 )
 
+
+Target "SourceLink" (fun _ ->
+    match SourceLink.Pdbstr.tryFind() with
+    | Some(_) -> 
+        let baseUrl = sprintf "%s/%s/{0}/%%var2%%" gitRaw "NEventStore"
+        !! "src/**/*.??proj"
+        |> Seq.iter (fun projFile ->
+            let proj = VsProj.LoadRelease projFile
+            SourceLink.Index proj.CompilesNotLinked proj.OutputFilePdb __SOURCE_DIRECTORY__ baseUrl
+        )
+    | _ -> traceImportant "SourceLinking: Skipped because pdbstr.exe is not installed (or cannot be found in the canonical paths). 
+    The best way is to install using chocolately. See 'build.markdown' for more details."
+)
+
 "Clean"
   //==> "DebugTest"
   ==> "RestorePackages"
   ==> "Build"
-  ==> "CreatePackages"
   ==> "UnitTests"
-  =?> ("PublishPackages", not isLocalBuild)
+  =?> ("SourceLink", not isLinux)
+  ==> "CreateNuget"
+  =?> ("PublishNugetToAppVeyor", not isLocalBuild)
   ==> "Default"
 
 RunTargetOrDefault "Default"
