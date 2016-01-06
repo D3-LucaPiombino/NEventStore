@@ -2,7 +2,7 @@
 cls
 
 pushd src
-rem ..\build\tools\nuget\nuget.exe restore
+..\build\tools\nuget\nuget.exe restore
 popd
 
 build\tools\nuget\nuget.exe restore build\tools\build.project.json -OutputDirectory "build\tools"
