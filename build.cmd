@@ -1,11 +1,11 @@
-
+@echo off
 cls
 
 echo %CD%
 
 pushd src
 echo %CD%
-..\build\tools\nuget\nuget.exe restore
+%CD%\..\build\tools\nuget\nuget.exe restore
 echo %CD%
 popd
 
