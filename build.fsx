@@ -55,15 +55,24 @@ type packageInfo = {
     Project: string
     ProjectJson: string
     Summary: string
-    Dependencies : NugetDependencies
+    Dependencies : NugetDependencies -> NugetDependencies 
     Files: list<string*string option*string option>
 }
 
 let nugs = [| { Project = "NEventStore"
                 Summary = "NEventStore is a persistence agnostic event sourcing library for .NET. The primary use is most often associated with CQRS."
                 ProjectJson = @".\src\NEventStore\project.json"
-                Files = [ (@"..\..\src\NEventStore\bin\Release\NEventStore*", Some @"lib\net45", None) ]
-                Dependencies = [ ]
+                Files = [ (@"..\..\src\NEventStore\bin\Release\NEventStore*", Some @"lib\net45", Some @"**\*.pdb")
+                        //;(@"..\..\src\NEventStore\**\*.cs", Some "src", None) 
+                        ] 
+                Dependencies = id
+            };
+            { 
+                Project = "NEventStore.symbols"
+                Summary = "SourceLinked pdb files for NEventStore"
+                ProjectJson = @".\src\NEventStore\project.json"
+                Files = [ (@"..\..\src\NEventStore\bin\Release\NEventStore.pdb", Some @"lib\net45", None) ] 
+                Dependencies = fun dep -> [ ("NEventStore", NuGetVersion) ]
             }
     |]
 
@@ -148,9 +157,9 @@ Target "CreateNuget" (fun _ ->
           Description = "The purpose of the EventStore is to represent a series of events as a stream. Furthermore, it provides hooks whereby any events committed to the stream can be dispatched to interested parties."
           OutputPath = buildArtifactPath
           Project = nug.Project
-          Dependencies = (getDeps nug) @ nug.Dependencies
+          Dependencies = nug.Dependencies (getDeps nug)
           Summary = nug.Summary
-          SymbolPackage = NugetSymbolPackage.Nuspec
+          SymbolPackage = NugetSymbolPackage.None
           Version = NuGetVersion
           WorkingDir = nugetWorkingPath
           Files = nug.Files
@@ -177,7 +186,7 @@ Target "PublishNugetToAppVeyor" (fun _ ->
           Publish = true
           PublishUrl = environVarOrFail "APPVEYOR_NUGET_ACCOUNT_FEED"
           Project = nug.Project
-          SymbolPackage = NugetSymbolPackage.Nuspec
+          SymbolPackage = NugetSymbolPackage.None
           Version = NuGetVersion
           WorkingDir = nugetWorkingPath
           OutputPath = buildArtifactPath
