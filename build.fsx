@@ -1,6 +1,7 @@
+#load @"build/common.fsx"
+
 #I @"artifacts/#build_deps/FAKE/4.12.0/tools"
 #r @"FakeLib.dll"
-#r @"artifacts/#build_deps/FSharp.Data/2.2.5/lib/net40/FSharp.Data.dll"
 #load "artifacts/#build_deps/SourceLink.Fake/1.1.0/tools/SourceLink.fsx"
 
 open System.IO
@@ -61,8 +62,7 @@ type packageInfo = {
 let nugs = [| { Project = "NEventStore"
                 Summary = "NEventStore is a persistence agnostic event sourcing library for .NET. The primary use is most often associated with CQRS."
                 ProjectJson = @".\src\NEventStore\project.json"
-                Files = [ (@"..\..\src\NEventStore\bin\Release\NEventStore*", Some @"lib\net45", None);
-                        (@"..\..\src\NEventStore\**\*.cs", Some "src", None) ] 
+                Files = [ (@"..\..\src\NEventStore\bin\Release\NEventStore*", Some @"lib\net45", None) ]
                 Dependencies = [ ]
             }
     |]
@@ -133,58 +133,6 @@ Target "UnitTests" (fun _ ->
 )
 
 
-
-let getProjectDependencies (projectJsonFile:string) = 
-    let json = JsonValue.Load( new StreamReader(projectJsonFile))
-    let deps = json.GetProperty("dependencies")
-    
-
-    let(|PkgVersion|_|) x =
-        match x with
-        | ("version", JsonValue.String version ) -> Some(version)
-        | _ -> None
-
-    
-    let(|RuntimeDep|_|) x =
-        match x with
-        | ("type", JsonValue.String "default" ) -> Some(RuntimeDep)
-        | _                                     -> None
-
-    let(|BuildDep|_|) x =
-        match x with
-        | ("type", JsonValue.String "build"   ) -> Some(BuildDep)
-        | _                                     -> None
-
-    
-
-    let rec computeRuntimeDependencies packageId jsonValue =
-        match jsonValue with
-        | JsonValue.String version  -> Some (packageId , version)
-        | JsonValue.Record properties    -> 
-            let rec scanProperties propertylist packageType packageVersion =
-                match propertylist with
-                | jsonProperty::remainingProperties -> 
-                    match (jsonProperty, packageType, packageVersion) with
-                    | ( RuntimeDep         , _          , Some(version) ) -> Some (packageId , version)
-                    | ( PkgVersion(version), Some(true) , _             ) -> Some (packageId , version)
-                    | ( PkgVersion(version), _          , _             ) -> scanProperties remainingProperties packageType (Some version) // look for "type"
-                    | ( RuntimeDep         , _          , None          ) -> scanProperties remainingProperties (Some true) packageVersion // look for "version"
-                    | ( BuildDep           , _          , _             ) -> None                                                          // discard this
-                    | _                                                   -> scanProperties remainingProperties packageType packageVersion
-                | [] -> None
-            scanProperties (Array.toList properties) None None
-        | _ -> None
-
-    deps
-        .Properties() 
-        |> Array.toList
-        |> List.map(fun (packageId, packageInfo) -> computeRuntimeDependencies packageId packageInfo) 
-        |> List.choose id
-    
-    
-    
-
-
 Target "CreateNuget" (fun _ ->
 
   trace "Create nuget packages..."
@@ -192,7 +140,7 @@ Target "CreateNuget" (fun _ ->
   nugs
     |> Array.iter (fun nug ->
 
-      let getDeps daNug : NugetDependencies = getProjectDependencies daNug.ProjectJson
+      let getDeps daNug : NugetDependencies = Common.Nuget3.getProjectDependencies daNug.ProjectJson
 
       let setParams defaults = {
         defaults with 
@@ -217,17 +165,12 @@ Target "Default" (fun _ ->
 )
 
 
-Target "DebugTest" (fun _ ->
-  trace "Test ..."
-)
 
 Target "PublishNugetToAppVeyor" (fun _ ->
     
     nugs
     |> Array.iter (fun nug ->
 
-      let getDeps daNug : NugetDependencies = getProjectDependencies daNug.ProjectJson
-      
       let setParams defaults = {
         defaults with 
           AccessKey = environVarOrFail "APPVEYOR_NUGET_ACCOUNT_APIKEY"
@@ -258,7 +201,6 @@ Target "SourceLink" (fun _ ->
 )
 
 "Clean"
-  //==> "DebugTest"
   ==> "RestorePackages"
   ==> "Build"
   ==> "UnitTests"
