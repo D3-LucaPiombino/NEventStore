@@ -1,7 +1,6 @@
-#load @"build/common.fsx"
-
 #I @"artifacts/#build_deps/FAKE/4.12.0/tools"
 #r @"FakeLib.dll"
+#load @"build/common.fsx"
 #load "artifacts/#build_deps/SourceLink.Fake/1.1.0/tools/SourceLink.fsx"
 
 open System.IO
@@ -62,16 +61,16 @@ type packageInfo = {
 let nugs = [| { Project = "NEventStore"
                 Summary = "NEventStore is a persistence agnostic event sourcing library for .NET. The primary use is most often associated with CQRS."
                 ProjectJson = @".\src\NEventStore\project.json"
-                Files = [ (@"..\..\src\NEventStore\bin\Release\NEventStore*", Some @"lib\net45", Some @"**\*.pdb")
-                        //;(@"..\..\src\NEventStore\**\*.cs", Some "src", None) 
-                        ] 
+                Files = [ (@"..\..\src\NEventStore\bin\Release\NEventStore*", Some @"lib\net45", Some @"**\*.pdb*") ] 
                 Dependencies = id
             };
             { 
                 Project = "NEventStore.symbols"
                 Summary = "SourceLinked pdb files for NEventStore"
                 ProjectJson = @".\src\NEventStore\project.json"
-                Files = [ (@"..\..\src\NEventStore\bin\Release\NEventStore.pdb", Some @"lib\net45", None) ] 
+                Files = [ (@"..\..\src\NEventStore\bin\Release\NEventStore.pdb*", Some @"build\net45", None);
+                          (@"..\..\src\NEventStore\#nupkg\build\*", Some @"build\net45", None) 
+                        ] 
                 Dependencies = fun dep -> [ ("NEventStore", NuGetVersion) ]
             }
     |]
@@ -154,7 +153,8 @@ Target "CreateNuget" (fun _ ->
       let setParams defaults = {
         defaults with 
           Authors = ["NEventStore Dev Team" ]
-          Description = "The purpose of the EventStore is to represent a series of events as a stream. Furthermore, it provides hooks whereby any events committed to the stream can be dispatched to interested parties."
+          Description = "The purpose of the EventStore is to represent a series of events as a stream. Furthermore, it provides 
+          hooks whereby any events committed to the stream can be dispatched to interested parties."
           OutputPath = buildArtifactPath
           Project = nug.Project
           Dependencies = nug.Dependencies (getDeps nug)
@@ -165,7 +165,26 @@ Target "CreateNuget" (fun _ ->
           Files = nug.Files
       } 
 
-      NuGet setParams (FullName "./template.nuspec")
+
+//      let setParamsEx (defaults:Common.Nuget3.NuGetParamsEx) = {
+//        defaults with 
+//          Authors = ["NEventStore Dev Team" ]
+//          Description = "The purpose of the EventStore is to represent a series of events as a stream. Furthermore, it provides 
+//          hooks whereby any events committed to the stream can be dispatched to interested parties."
+//          OutputPath = buildArtifactPath
+//          Project = nug.Project
+//          Dependencies = nug.Dependencies (getDeps nug)
+//          Summary = nug.Summary
+//          SymbolPackage = NugetSymbolPackage.None
+//          Version = NuGetVersion
+//          WorkingDir = nugetWorkingPath
+//          Files = nug.Files
+//          ContentFiles = []//[(@"..\..\src\NEventStore\bin\Release\NEventStore.pdb", None, None, None, None)]
+//      } 
+//
+//      let nuspecFile = Common.Nuget3.createNuSpecFromTemplateEx setParamsEx (FullName "./template.nuspec") 
+//      NuGetPackDirectly setParams nuspecFile
+        NuGet setParams (FullName "./template.nuspec")
     )
 )
 
