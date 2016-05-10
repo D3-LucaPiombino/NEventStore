@@ -17,6 +17,7 @@ let nugetPackageRepositoryPath = FullName "./artifacts/#build_deps"
 let buildArtifactPath = "./artifacts/nuget_packages"
 let nugetWorkingPath = FullName "./artifacts/#temp"
 let appveryorNugetAccountFeed = environVarOrDefault "APPVEYOR_NUGET_ACCOUNT_FEED" ""
+let nugetVersionTail = getBuildParamOrDefault "versionTail" ""
 
 let assemblyVersion = "6.0.0.0"
 let baseVersion = "6.0.0"
@@ -42,7 +43,7 @@ let informationalVersion = (fun _ ->
 let nugetVersion = (fun _ ->
   let branchName = (branch ".").Replace("_", "")
 
-  let label = if branchName="master" then "" else "-" + branchName.Substring(0, min 20 branchName.Length)
+  let label = if branchName="master" then nugetVersionTail else "-" + branchName.Substring(0, min 20 branchName.Length)
   (Version + label)
 )
 
