@@ -16,8 +16,7 @@ open SourceLink;
 let nugetPackageRepositoryPath = FullName "./artifacts/#build_deps"
 let buildArtifactPath = "./artifacts/nuget_packages"
 let nugetWorkingPath = FullName "./artifacts/#temp"
-
-
+let appveryorNugetAccountFeed = environVarOrDefault "APPVEYOR_NUGET_ACCOUNT_FEED" ""
 
 let assemblyVersion = "6.0.0.0"
 let baseVersion = "6.0.0"
@@ -234,7 +233,7 @@ Target "SourceLink" (fun _ ->
   ==> "UnitTests"
   =?> ("SourceLink", not isLinux)
   ==> "CreateNuget"
-  =?> ("PublishNugetToAppVeyor", not isLocalBuild)
+  =?> ("PublishNugetToAppVeyor", appveryorNugetAccountFeed <> "")
   ==> "Default"
 
 RunTargetOrDefault "Default"
