@@ -1,6 +1,6 @@
 ﻿{
-  "version": "1.0.0-*",
-  "description": "NEventStore_coreclr Class Library",
+  "version": "6.0.0-*",
+  "description": "NEventStore",
   "authors": [
     "lucap"
   ],
@@ -10,7 +10,10 @@
   "projectUrl": "",
   "licenseUrl": "",
   "dependencies": {
-    "ILMerge": "2.14.1208",
+    "ILMerge": {
+      "version": "2.14.1208",
+      "type": "build"
+    },
     "Newtonsoft.Json": "8.0.1",
     "Rx-Core": "2.2.5",
     "Rx-Interfaces": "2.2.5",
